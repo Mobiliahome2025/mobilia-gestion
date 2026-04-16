@@ -1,47 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { auth, db } from './firebase';
+import Login from './Login';
 import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  BarChart3, 
-  Plus, 
-  Search, 
-  Clock, 
-  Armchair, 
-  Trash2, 
-  Pencil, 
-  X, 
-  Menu, 
-  Settings, 
-  CreditCard, 
-  Tags, 
-  Coins, 
-  Receipt, 
-  Check, 
-  ArrowRight, 
-  Wallet, 
-  TrendingDown, 
-  TrendingUp, 
-  Gift, 
-  Boxes, 
-  Percent, 
-  PackagePlus, 
-  CheckCircle2, 
-  UploadCloud, 
-  FileSpreadsheet, 
-  Download, 
-  ShoppingBag, 
-  Calendar, 
-  Activity, 
-  FileText, 
-  Filter, 
-  ChevronRight, 
-  ChevronDown, 
-  PieChart, 
-  Info, 
-  Landmark 
+  LayoutDashboard, Package, ShoppingCart, TrendingUp, ChevronRight, Plus, 
+  Search, Filter, DollarSign, Calendar, ArrowUpRight, ArrowDownRight, Trash2, 
+  Menu, X, BarChart3, Clock, Armchair, Pencil, Settings, CreditCard, Tags, 
+  Coins, Receipt, Check, ArrowRight, Wallet, TrendingDown, Gift, Boxes, 
+  Percent, PackagePlus, CheckCircle2, UploadCloud, FileSpreadsheet, Download, 
+  ShoppingBag, Activity, FileText, ChevronDown, PieChart, Info, Landmark 
 } from 'lucide-react';
 
 // --- CONSTANTES INICIALES ---
@@ -116,7 +84,6 @@ const generateSKU = () => {
 };
 
 // --- COMPONENTES DE APOYO ---
-
 function StatCard({ title, value, icon, color }) {
   const colors = { 
     greige: 'bg-[#b5a898]/10 text-[#b5a898]', 
@@ -163,14 +130,12 @@ function ExpandableRow({ title, amount, isNegative, children, isTotalRow }) {
 }
 
 // --- VISTAS DEL SISTEMA ---
-
 function DashboardView({ sales, products, purchases, accounts, paymentMethods }) {
   const totalSales = useMemo(() => sales.reduce((acc, s) => acc + s.total, 0), [sales]);
   const totalExpenses = useMemo(() => purchases.reduce((acc, p) => acc + p.amount, 0), [purchases]);
   const netResult = totalSales - totalExpenses;
   const lowStockCount = products.filter(p => p.stock <= p.minStock).length;
   const totalValue = products.reduce((acc, p) => acc + (p.cost * p.stock), 0);
-
   const salesCount = sales.length;
   const averageTicket = salesCount > 0 ? totalSales / salesCount : 0;
 
@@ -254,9 +219,7 @@ function DashboardView({ sales, products, purchases, accounts, paymentMethods })
 
 function PnLView({ sales, purchases, paymentBonuses, taxRules }) {
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().split('T')[0];
+    const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
@@ -266,28 +229,21 @@ function PnLView({ sales, purchases, paymentBonuses, taxRules }) {
 
     const revenueByCategory = {};
     let ventasBrutas = 0;
-
     const directCostsBreakdown = { 'CMV (Costo de Mercadería)': 0 };
     let totalDirectCosts = 0;
-
     const taxesBreakdown = {};
     let totalTaxes = 0;
-
     const opExBreakdown = {};
     let totalOpEx = 0;
-    
     let comprasMercaderiaAisladas = 0;
 
     filteredSales.forEach(sale => {
       const totalPaymentsVolume = sale.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
-
       sale.items.forEach(item => {
          const subtotalItem = item.price * item.qty;
          const costItem = (item.cost || 0) * item.qty;
-         
          ventasBrutas += subtotalItem;
          revenueByCategory[item.category] = (revenueByCategory[item.category] || 0) + subtotalItem;
-         
          directCostsBreakdown['CMV (Costo de Mercadería)'] += costItem;
          totalDirectCosts += costItem;
 
@@ -295,14 +251,12 @@ function PnLView({ sales, purchases, paymentBonuses, taxRules }) {
            sale.payments.forEach(pay => {
              const proportion = pay.amount / totalPaymentsVolume;
              const subAmount = subtotalItem * proportion;
-             
              const bonus = paymentBonuses.find(b => b.method === pay.method);
              if (bonus) {
                 const discountVal = subAmount * (bonus.value / 100);
                 directCostsBreakdown['Bonificaciones Otorgadas'] = (directCostsBreakdown['Bonificaciones Otorgadas'] || 0) + discountVal;
                 totalDirectCosts += discountVal;
              }
-
              const rule = taxRules.find(r => (r.category === item.category || r.category === 'Todas') && (r.paymentMethod === pay.method || r.paymentMethod === 'Todas'));
              if (rule) {
                 rule.concepts.forEach(c => {
@@ -341,17 +295,9 @@ function PnLView({ sales, purchases, paymentBonuses, taxRules }) {
     const resultadoNeto = utilidadBruta - totalOpEx - totalTaxes;
 
     return {
-      ventasBrutas,
-      revenueByCategory,
-      totalDirectCosts,
-      directCostsBreakdown,
-      utilidadBruta,
-      totalOpEx,
-      opExBreakdown,
-      totalTaxes,
-      taxesBreakdown,
-      resultadoNeto,
-      comprasMercaderiaAisladas,
+      ventasBrutas, revenueByCategory, totalDirectCosts, directCostsBreakdown,
+      utilidadBruta, totalOpEx, opExBreakdown, totalTaxes, taxesBreakdown,
+      resultadoNeto, comprasMercaderiaAisladas,
       margen: ventasBrutas > 0 ? (resultadoNeto / ventasBrutas) * 100 : 0
     };
   }, [sales, purchases, startDate, endDate, taxRules, paymentBonuses]);
@@ -579,9 +525,7 @@ function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm }) {
 
 function CashFlowView({ sales, purchases, searchTerm }) {
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().split('T')[0];
+    const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
@@ -589,40 +533,25 @@ function CashFlowView({ sales, purchases, searchTerm }) {
     const s = sales.map(sale => {
       const methods = sale.payments ? sale.payments.map(p => p.method).join(' + ') : 'Varios';
       return {
-        id: sale.id,
-        date: sale.date,
+        id: sale.id, date: sale.date,
         concept: `Venta #${String(sale.id).split('-')[1] || String(sale.id)}`,
         detail: sale.items.map(i => i.name).join(', '),
-        type: 'Ingreso',
-        method: methods,
-        amount: sale.total 
+        type: 'Ingreso', method: methods, amount: sale.total 
       };
     });
 
     const p = purchases.map(pur => ({
-      id: pur.id,
-      date: pur.date,
-      concept: pur.category,
-      detail: pur.description,
-      type: 'Egreso',
-      method: pur.paymentMethod,
-      amount: -pur.amount
+      id: pur.id, date: pur.date, concept: pur.category,
+      detail: pur.description, type: 'Egreso', method: pur.paymentMethod, amount: -pur.amount
     }));
 
     let all = [...s, ...p];
-
     if (startDate) all = all.filter(m => m.date >= startDate);
     if (endDate) all = all.filter(m => m.date <= endDate);
-
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      all = all.filter(m => 
-        String(m.concept).toLowerCase().includes(term) || 
-        String(m.detail).toLowerCase().includes(term) ||
-        String(m.method).toLowerCase().includes(term)
-      );
+      all = all.filter(m => String(m.concept).toLowerCase().includes(term) || String(m.detail).toLowerCase().includes(term) || String(m.method).toLowerCase().includes(term));
     }
-
     return all.sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [sales, purchases, startDate, endDate, searchTerm]);
 
@@ -632,15 +561,7 @@ function CashFlowView({ sales, purchases, searchTerm }) {
 
   const handleExportCSV = () => {
     const headers = ['Fecha', 'Tipo', 'Concepto', 'Detalle', 'Medio de Pago', 'Monto'];
-    const rows = movements.map(m => [
-      m.date,
-      m.type,
-      `"${m.concept}"`,
-      `"${m.detail}"`,
-      `"${m.method}"`,
-      m.amount
-    ]);
-    
+    const rows = movements.map(m => [m.date, m.type, `"${m.concept}"`, `"${m.detail}"`, `"${m.method}"`, m.amount]);
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -909,10 +830,7 @@ function InventoryView({ products, setProducts, categories, categoryMargins, sea
   const filtered = useMemo(() => {
     return products.filter(p => {
       const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
-      const matchesSearch = !searchTerm || 
-        String(p.name).toLowerCase().includes(searchTerm.toLowerCase()) || 
-        String(p.sku).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(p.supplier).toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !searchTerm || String(p.name).toLowerCase().includes(searchTerm.toLowerCase()) || String(p.sku).toLowerCase().includes(searchTerm.toLowerCase()) || String(p.supplier).toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategory, searchTerm]);
@@ -973,7 +891,6 @@ function InventoryView({ products, setProducts, categories, categoryMargins, sea
 }
 
 // --- VISTAS VENTAS ---
-
 function SaleDetailModal({ sale, onClose }) {
   const subtotal = sale.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
 
@@ -1069,7 +986,6 @@ function NewSaleForm({ products, paymentMethods, taxRules, categories, paymentBo
   const subtotalCart = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
   const amountCoveredBase = payments.reduce((acc, p) => acc + p.amount, 0);
   const balanceBase = subtotalCart - amountCoveredBase;
-
   const totalFinal = subtotalCart;
 
   useEffect(() => {
@@ -1243,7 +1159,6 @@ function SalesView({ sales, setSales, products, paymentMethods, taxRules, catego
 }
 
 // --- VISTA DE COMPRAS ---
-
 function PurchasesView({ purchases, setPurchases, paymentMethods, expenseCategories, searchTerm }) {
   const [isAdding, setIsAdding] = useState(false);
   const [draftExpenses, setDraftExpenses] = useState([]);
@@ -1313,7 +1228,6 @@ function PurchasesView({ purchases, setPurchases, paymentMethods, expenseCategor
 }
 
 // --- VISTAS VARIABLES ---
-
 function MarginManager({ categories, categoryMargins, setCategoryMargins }) {
   const getMargin = (cat) => {
     const m = categoryMargins.find(x => x.category === cat);
@@ -1487,46 +1401,20 @@ function VariablesView({ categories, setCategories, expenseCategories, setExpens
 }
 
 // --- APLICACIÓN PRINCIPAL ---
-
 export default function App() {
+  // 1. Estados Auth
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // 2. Estados Navegación/UI
   const [currentView, setCurrentView] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Memoria temporal de la pantalla
+  // 3. Estados de Datos
   const [products, setProductsLocal] = useState([]);
   const [sales, setSalesLocal] = useState([]);
   const [purchases, setPurchasesLocal] = useState([]); 
-
-  // 2. MAGIA: Escuchar a la base de datos en tiempo real
-  useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, "sistema", "datosGenerales"), (documento) => {
-      if (documento.exists()) {
-        const data = documento.data();
-        if (data.productos) setProductsLocal(data.productos);
-        if (data.ventas) setSalesLocal(data.ventas);
-        if (data.gastos) setPurchasesLocal(data.gastos);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // 3. MAGIA: Funciones que guardan en la nube automáticamente
-  const setProducts = (nuevosProductos) => {
-    setProductsLocal(nuevosProductos);
-    setDoc(doc(db, "sistema", "datosGenerales"), { productos: nuevosProductos }, { merge: true });
-  };
-
-  const setSales = (nuevasVentas) => {
-    setSalesLocal(nuevasVentas);
-    setDoc(doc(db, "sistema", "datosGenerales"), { ventas: nuevasVentas }, { merge: true });
-  };
-
-  const setPurchases = (nuevosGastos) => {
-    setPurchasesLocal(nuevosGastos);
-    setDoc(doc(db, "sistema", "datosGenerales"), { gastos: nuevosGastos }, { merge: true });
-  };
-
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [categoryMargins, setCategoryMargins] = useState(INITIAL_CATEGORY_MARGINS);
   const [expenseCategories, setExpenseCategories] = useState(INITIAL_PURCHASE_CATEGORIES);
@@ -1535,6 +1423,54 @@ export default function App() {
   const [taxRules, setTaxRules] = useState(INITIAL_TAX_RULES);
   const [paymentBonuses, setPaymentBonuses] = useState(INITIAL_PAYMENT_BONUSES);
   const [taxConcepts, setTaxConcepts] = useState(INITIAL_TAX_CONCEPTS);
+
+  // 4. Efecto de Autenticación
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribeAuth();
+  }, []);
+
+  // 5. Efecto de Base de Datos
+  useEffect(() => {
+    if (!user) return; // Si no hay usuario, no intenta leer nada
+    const unsubscribeData = onSnapshot(doc(db, "sistema", "datosGenerales"), (documento) => {
+      if (documento.exists()) {
+        const data = documento.data();
+        if (data.productos) setProductsLocal(data.productos);
+        if (data.ventas) setSalesLocal(data.ventas);
+        if (data.gastos) setPurchasesLocal(data.gastos);
+      }
+    });
+    return () => unsubscribeData();
+  }, [user]);
+
+  // 6. Funciones para Guardar en Nube
+  const setProducts = (nuevosProductos) => {
+    setProductsLocal(nuevosProductos);
+    setDoc(doc(db, "sistema", "datosGenerales"), { productos: nuevosProductos }, { merge: true });
+  };
+  const setSales = (nuevasVentas) => {
+    setSalesLocal(nuevasVentas);
+    setDoc(doc(db, "sistema", "datosGenerales"), { ventas: nuevasVentas }, { merge: true });
+  };
+  const setPurchases = (nuevosGastos) => {
+    setPurchasesLocal(nuevosGastos);
+    setDoc(doc(db, "sistema", "datosGenerales"), { gastos: nuevosGastos }, { merge: true });
+  };
+
+  // --- BARRERAS DE SEGURIDAD ---
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-[#f4f2f0]">
+      <div className="font-black text-stone-400 uppercase tracking-widest flex flex-col items-center gap-4">
+        <div className="w-8 h-8 border-4 border-stone-300 border-t-black rounded-full animate-spin"></div>
+        Cargando Sistema...
+      </div>
+    </div>
+  );
+  if (!user) return <Login />;
 
   const NavItem = ({ icon: Icon, label, id }) => (
     <button 
@@ -1567,7 +1503,7 @@ export default function App() {
             <p className="text-[9px] text-[#b5a898] font-bold uppercase tracking-[0.3em] pl-1">Design & Deco</p>
           </div>
 
-          <nav className="flex-1 space-y-2">
+          <nav className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-2">
             <NavItem icon={LayoutDashboard} label="Dashboard" id="dashboard" />
             <NavItem icon={Activity} label="Flujo de Caja" id="cashflow" />
             <NavItem icon={FileText} label="P&L (Resultados)" id="pnl" />
@@ -1580,14 +1516,21 @@ export default function App() {
             </div>
           </nav>
 
-          <div className="pt-6 border-t border-stone-800/50">
+          <div className="pt-6 border-t border-stone-800/50 shrink-0">
             <div className="bg-black p-4 rounded-xl flex items-center gap-3 border border-stone-800">
               <div className="w-10 h-10 rounded-full bg-stone-800 flex items-center justify-center font-black text-xs text-[#b5a898]">MH</div>
-              <div>
-                <p className="text-xs font-bold text-white">Administración</p>
-                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-0.5">Sistema Activo</p>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-white truncate">{user.email}</p>
+                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-0.5">Activo</p>
               </div>
             </div>
+            {/* BOTÓN PARA CERRAR SESIÓN */}
+            <button 
+              onClick={() => signOut(auth)} 
+              className="mt-3 w-full bg-rose-500/10 text-rose-500 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition"
+            >
+              Cerrar Sesión
+            </button>
           </div>
         </div>
       </aside>
@@ -1606,7 +1549,8 @@ export default function App() {
                 currentView === 'cashflow' ? 'Flujo de Caja' : 
                 currentView === 'pnl' ? 'Estado de Resultados P&L' :
                 currentView === 'profitability' ? 'Rentabilidad por Venta' :
-                currentView
+                currentView === 'inventory' ? 'Inventario' :
+                'Dashboard'
               }
             </h2>
           </div>
