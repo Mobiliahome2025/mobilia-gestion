@@ -1411,18 +1411,18 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 3. Estados de Datos
+  // 3. Estados de Datos (Ahora todos con Local para poder interceptarlos)
   const [products, setProductsLocal] = useState([]);
   const [sales, setSalesLocal] = useState([]);
   const [purchases, setPurchasesLocal] = useState([]); 
-  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
-  const [categoryMargins, setCategoryMargins] = useState(INITIAL_CATEGORY_MARGINS);
-  const [expenseCategories, setExpenseCategories] = useState(INITIAL_PURCHASE_CATEGORIES);
-  const [accounts, setAccounts] = useState(INITIAL_ACCOUNTS);
-  const [paymentMethods, setPaymentMethods] = useState(INITIAL_PAYMENTS);
-  const [taxRules, setTaxRules] = useState(INITIAL_TAX_RULES);
-  const [paymentBonuses, setPaymentBonuses] = useState(INITIAL_PAYMENT_BONUSES);
-  const [taxConcepts, setTaxConcepts] = useState(INITIAL_TAX_CONCEPTS);
+  const [categories, setCategoriesLocal] = useState(INITIAL_CATEGORIES);
+  const [categoryMargins, setCategoryMarginsLocal] = useState(INITIAL_CATEGORY_MARGINS);
+  const [expenseCategories, setExpenseCategoriesLocal] = useState(INITIAL_PURCHASE_CATEGORIES);
+  const [accounts, setAccountsLocal] = useState(INITIAL_ACCOUNTS);
+  const [paymentMethods, setPaymentMethodsLocal] = useState(INITIAL_PAYMENTS);
+  const [taxRules, setTaxRulesLocal] = useState(INITIAL_TAX_RULES);
+  const [paymentBonuses, setPaymentBonusesLocal] = useState(INITIAL_PAYMENT_BONUSES);
+  const [taxConcepts, setTaxConceptsLocal] = useState(INITIAL_TAX_CONCEPTS);
 
   // 4. Efecto de Autenticación
   useEffect(() => {
@@ -1433,33 +1433,40 @@ export default function App() {
     return () => unsubscribeAuth();
   }, []);
 
-  // 5. Efecto de Base de Datos
+  // 5. Efecto de Base de Datos (Ahora lee TODO de Firebase)
   useEffect(() => {
-    if (!user) return; // Si no hay usuario, no intenta leer nada
+    if (!user) return; 
     const unsubscribeData = onSnapshot(doc(db, "sistema", "datosGenerales"), (documento) => {
       if (documento.exists()) {
         const data = documento.data();
         if (data.productos) setProductsLocal(data.productos);
         if (data.ventas) setSalesLocal(data.ventas);
         if (data.gastos) setPurchasesLocal(data.gastos);
+        if (data.categories) setCategoriesLocal(data.categories);
+        if (data.categoryMargins) setCategoryMarginsLocal(data.categoryMargins);
+        if (data.expenseCategories) setExpenseCategoriesLocal(data.expenseCategories);
+        if (data.accounts) setAccountsLocal(data.accounts);
+        if (data.paymentMethods) setPaymentMethodsLocal(data.paymentMethods);
+        if (data.taxRules) setTaxRulesLocal(data.taxRules);
+        if (data.paymentBonuses) setPaymentBonusesLocal(data.paymentBonuses);
+        if (data.taxConcepts) setTaxConceptsLocal(data.taxConcepts);
       }
     });
     return () => unsubscribeData();
   }, [user]);
 
-  // 6. Funciones para Guardar en Nube
-  const setProducts = (nuevosProductos) => {
-    setProductsLocal(nuevosProductos);
-    setDoc(doc(db, "sistema", "datosGenerales"), { productos: nuevosProductos }, { merge: true });
-  };
-  const setSales = (nuevasVentas) => {
-    setSalesLocal(nuevasVentas);
-    setDoc(doc(db, "sistema", "datosGenerales"), { ventas: nuevasVentas }, { merge: true });
-  };
-  const setPurchases = (nuevosGastos) => {
-    setPurchasesLocal(nuevosGastos);
-    setDoc(doc(db, "sistema", "datosGenerales"), { gastos: nuevosGastos }, { merge: true });
-  };
+  // 6. Funciones para Guardar en Nube (Ahora guardan TODO en Firebase)
+  const setProducts = (n) => { setProductsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { productos: n }, { merge: true }); };
+  const setSales = (n) => { setSalesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { ventas: n }, { merge: true }); };
+  const setPurchases = (n) => { setPurchasesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { gastos: n }, { merge: true }); };
+  const setCategories = (n) => { setCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categories: n }, { merge: true }); };
+  const setCategoryMargins = (n) => { setCategoryMarginsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categoryMargins: n }, { merge: true }); };
+  const setExpenseCategories = (n) => { setExpenseCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { expenseCategories: n }, { merge: true }); };
+  const setAccounts = (n) => { setAccountsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { accounts: n }, { merge: true }); };
+  const setPaymentMethods = (n) => { setPaymentMethodsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { paymentMethods: n }, { merge: true }); };
+  const setTaxRules = (n) => { setTaxRulesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { taxRules: n }, { merge: true }); };
+  const setPaymentBonuses = (n) => { setPaymentBonusesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { paymentBonuses: n }, { merge: true }); };
+  const setTaxConcepts = (n) => { setTaxConceptsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { taxConcepts: n }, { merge: true }); };
 
   // --- BARRERAS DE SEGURIDAD ---
   if (loading) return (
@@ -1524,7 +1531,6 @@ export default function App() {
                 <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-0.5">Activo</p>
               </div>
             </div>
-            {/* BOTÓN PARA CERRAR SESIÓN */}
             <button 
               onClick={() => signOut(auth)} 
               className="mt-3 w-full bg-rose-500/10 text-rose-500 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition"
