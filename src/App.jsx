@@ -1411,7 +1411,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 3. Estados de Datos (Ahora todos con Local para poder interceptarlos)
+  // 3. Estados de Datos
   const [products, setProductsLocal] = useState([]);
   const [sales, setSalesLocal] = useState([]);
   const [purchases, setPurchasesLocal] = useState([]); 
@@ -1433,7 +1433,7 @@ export default function App() {
     return () => unsubscribeAuth();
   }, []);
 
-  // 5. Efecto de Base de Datos (Ahora lee TODO de Firebase)
+  // 5. Efecto de Base de Datos
   useEffect(() => {
     if (!user) return; 
     const unsubscribeData = onSnapshot(doc(db, "sistema", "datosGenerales"), (documento) => {
@@ -1455,7 +1455,7 @@ export default function App() {
     return () => unsubscribeData();
   }, [user]);
 
-  // 6. Funciones para Guardar en Nube (Ahora guardan TODO en Firebase)
+  // 6. Funciones para Guardar en Nube
   const setProducts = (n) => { setProductsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { productos: n }, { merge: true }); };
   const setSales = (n) => { setSalesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { ventas: n }, { merge: true }); };
   const setPurchases = (n) => { setPurchasesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { gastos: n }, { merge: true }); };
