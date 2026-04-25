@@ -277,7 +277,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
   const maxProfit = allVals.length > 0 ? Math.max(10, ...allVals) : 10;
   const minProfit = allVals.length > 0 ? Math.min(0, ...allVals) : 0;
   const rangeProfit = maxProfit - minProfit;
-  const getY = (val) => 130 - ((val - minProfit) / rangeProfit) * 100;
+  const getY = (val) => 150 - ((val - minProfit) / rangeProfit) * 100;
   const getX = (idx) => 20 + (idx * 92); // Anchura 500, separaciones iguales
 
   const MiniCard = ({ title, value, icon, colorClass }) => (
@@ -374,8 +374,8 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
                </div>
             </div>
 
-            {/* Gráfico 2: Rentabilidad Neta (Líneas) */}
-            <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm overflow-hidden flex flex-col h-64">
+ {/* Gráfico 2: Rentabilidad Neta (Líneas) */}
+            <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm flex flex-col min-h-[320px]">
                <div className="flex justify-between items-center mb-6 shrink-0">
                    <h3 className="font-bold text-stone-800 text-xs uppercase tracking-widest">Rentabilidad Neta (Top 3 Categorías)</h3>
                    <div className="flex gap-3 text-[9px] font-bold uppercase tracking-widest text-stone-500">
@@ -387,7 +387,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
                </div>
                <div className="relative w-full flex-1">
                   {top3Cats.length > 0 ? (
-                     <svg viewBox="0 0 500 160" className="w-full h-full overflow-visible" onMouseLeave={() => setHoverPoint(null)}>
+                     <svg viewBox="0 0 500 200" className="w-full h-full overflow-visible" onMouseLeave={() => setHoverPoint(null)}>
                         {/* Líneas Base Cero */}
                         <line x1="20" y1={getY(0)} x2="480" y2={getY(0)} stroke="#e5e7eb" strokeWidth="2" strokeDasharray="4 4" />
                         <line x1="20" y1={getY(maxProfit)} x2="480" y2={getY(maxProfit)} stroke="#f3f4f6" strokeWidth="1" />
@@ -410,7 +410,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
 
                         {/* Textos Inferiores (Meses) */}
                         {monthsData.map((m, idx) => (
-                           <text key={idx} x={getX(idx)} y="155" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold" className="uppercase tracking-widest">{m.label}</text>
+                           <text key={idx} x={getX(idx)} y="180" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold" className="uppercase tracking-widest">{m.label}</text>
                         ))}
 
                         {/* Tooltip Dinámico en SVG */}
