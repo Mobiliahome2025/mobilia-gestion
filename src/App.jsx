@@ -30,15 +30,18 @@ const INITIAL_PAYMENTS = [
   { name: 'Tarjeta 6 Cuotas', account: 'Mercado Pago' },
   { name: 'E-Check', account: 'Banco Santander' }
 ];
+
 const INITIAL_CATEGORY_MARGINS = [
   { category: 'Sofás', margin: 60 }, { category: 'Mesas', margin: 50 }, 
   { category: 'Sillas', margin: 40 }, { category: 'Living', margin: 45 }, 
   { category: 'Dormitorio', margin: 55 }, { category: 'Decoración', margin: 70 }
 ];
+
 const INITIAL_PAYMENT_BONUSES = [
   { id: 1, method: 'Efectivo', value: 30 },
   { id: 2, method: 'Transferencia', value: 30 }
 ];
+
 const INITIAL_LOAN_ADVANCES = [
   { category: 'Sofás', advancePercent: 20, defaultMethod: 'Efectivo' },
   { category: 'Mesas', advancePercent: 15, defaultMethod: 'Efectivo' },
@@ -47,7 +50,9 @@ const INITIAL_LOAN_ADVANCES = [
   { category: 'Dormitorio', advancePercent: 15, defaultMethod: 'Efectivo' },
   { category: 'Decoración', advancePercent: 0, defaultMethod: 'Efectivo' }
 ];
+
 const INITIAL_TAX_CONCEPTS = ['IVA', 'IIBB', 'Costo Transaccional', 'DyC', 'Costo Financiero'];
+
 const INITIAL_TAX_RULES = [
   {
     id: 3,
@@ -142,6 +147,7 @@ function ExpandableRow({ title, amount, isNegative, children, isTotalRow }) {
 
 function QuotePrintModal({ quote, paymentBonuses, onClose }) {
   const subtotal = quote.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
+
   const paymentSummaries = useMemo(() => {
     return (quote.paymentOptions || []).map(methodName => {
        const bonus = paymentBonuses?.find(b => b.method === methodName)?.value || 0;
@@ -156,6 +162,7 @@ function QuotePrintModal({ quote, paymentBonuses, onClose }) {
   const handlePrint = () => {
     window.print();
   };
+
   const handleSendWhatsApp = () => {
     if (!quote.client.phone) {
       alert("No hay un teléfono registrado para este cliente.");
@@ -166,6 +173,7 @@ function QuotePrintModal({ quote, paymentBonuses, onClose }) {
     quote.items.forEach(item => {
        text += `🛋️ ${item.qty}x *${item.name}* - ${formatCurrency(item.price * item.qty)}\n`;
     });
+    
     text += `\n💰 *Precio de Lista: ${formatCurrency(subtotal)}*\n\n`;
     
     if (paymentSummaries.length > 0) {
@@ -183,6 +191,7 @@ function QuotePrintModal({ quote, paymentBonuses, onClose }) {
     }
 
     text += `⏳ _Válido hasta: ${quote.expiration}_\n\nQuedamos a tu disposición por cualquier consulta. ¡Saludos!`;
+    
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -229,7 +238,7 @@ function QuotePrintModal({ quote, paymentBonuses, onClose }) {
 
               <table className="w-full text-left mb-10">
                  <thead>
-                   <tr className="border-b-2 border-stone-200 text-[10px] font-black uppercase tracking-widest text-stone-400">
+                    <tr className="border-b-2 border-stone-200 text-[10px] font-black uppercase tracking-widest text-stone-400">
                        <th className="pb-3">Cant.</th>
                        <th className="pb-3">Descripción</th>
                        <th className="pb-3 text-right">P. Unitario</th>
@@ -310,6 +319,7 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQuote, setSelectedQuote] = useState(null);
+
   // Form states
   const [quoteDate, setQuoteDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [quoteExpiration, setQuoteExpiration] = useState(() => {
@@ -319,6 +329,7 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientDNI, setClientDNI] = useState('');
+
   // Search states
   const [productSearch, setProductSearch] = useState('');
   const [tempProductId, setTempProductId] = useState(null);
@@ -328,20 +339,22 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
   const [showResults, setShowResults] = useState(false);
   
   const [selectedPayMethods, setSelectedPayMethods] = useState([]);
+
   const filteredQuotes = useMemo(() => {
     if (!searchTerm) return quotes;
     return quotes.filter(q => String(q.id).toLowerCase().includes(searchTerm.toLowerCase()) || q.client.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [quotes, searchTerm]);
+
   const filteredInventory = useMemo(() => {
     if (!productSearch || productSearch.length < 1) return [];
     return products.filter(p => String(p.name).toLowerCase().includes(productSearch.toLowerCase()));
   }, [productSearch, products]);
+
   const addToCart = () => {
     const p = parseFloat(tempPrice);
     if (!productSearch || !tempCategory || isNaN(p) || p <= 0) return;
     setCart([...cart, { id: Date.now() + Math.random(), productId: tempProductId, name: productSearch, category: tempCategory, price: p, qty: parseInt(tempQty)||1 }]);
-    setProductSearch(''); setTempCategory(''); setTempPrice('');
-    setTempQty('1'); setTempProductId(null);
+    setProductSearch(''); setTempCategory(''); setTempPrice(''); setTempQty('1'); setTempProductId(null);
   };
 
   const handleSaveQuote = () => {
@@ -367,7 +380,9 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
       setSelectedPayMethods([...selectedPayMethods, methodName]);
     }
   };
+
   const subtotalCart = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
@@ -376,8 +391,7 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
           Presupuestos y Cotizaciones
         </h3>
         {!isAdding && (
-           <button onClick={() => setIsAdding(true)} 
-           className="bg-black text-white px-6 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-800 transition shadow-sm flex items-center gap-2">
+           <button onClick={() => setIsAdding(true)} className="bg-black text-white px-6 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-800 transition shadow-sm flex items-center gap-2">
              <Plus className="w-4 h-4" /> Crear Presupuesto
            </button>
         )}
@@ -407,9 +421,9 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
                      {showResults && filteredInventory.length > 0 && (
                        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
                           {filteredInventory.map(p => (
-                             <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setTempProductId(p.id); setProductSearch(String(p.name)); setTempCategory(String(p.category)); setTempPrice(String(p.price)); setShowResults(false); }} className="w-full text-left p-3 hover:bg-stone-50 border-b border-stone-100 flex justify-between items-center transition">
+                            <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setTempProductId(p.id); setProductSearch(String(p.name)); setTempCategory(String(p.category)); setTempPrice(String(p.price)); setShowResults(false); }} className="w-full text-left p-3 hover:bg-stone-50 border-b border-stone-100 flex justify-between items-center transition">
                               <span className="font-bold text-sm text-stone-800">{String(p.name)}</span><span className="text-[10px] font-black text-emerald-600">{formatCurrency(p.price)}</span>
-                             </button>
+                            </button>
                           ))}
                        </div>
                      )}
@@ -463,7 +477,7 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
                 <div className="pt-4 text-center mb-8">
                    <p className="text-5xl font-black tracking-tighter text-white">{formatCurrency(subtotalCart)}</p>
                    <p className="text-[9px] font-bold uppercase text-stone-400 tracking-[0.2em] mt-2">Vigencia: {quoteExpiration}</p>
-                 </div>
+                </div>
                 <button onClick={handleSaveQuote} disabled={cart.length === 0 || !clientName.trim()} className="w-full bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-[#a39686] transition shadow-lg disabled:opacity-20 active:scale-95 flex items-center justify-center gap-2">
                   Guardar Presupuesto <Check className="w-4 h-4" />
                 </button>
@@ -517,6 +531,7 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
     </div>
   );
 }
+
 // --- MÓDULO DE PRÉSTAMOS PERSONALES ---
 
 function LoansView({ loans, setLoans, sales, setSales, paymentMethods }) {
@@ -526,16 +541,18 @@ function LoansView({ loans, setLoans, sales, setSales, paymentMethods }) {
   const [payMethod, setPayMethod] = useState('');
   
   const todayStr = new Date().toISOString().split('T')[0];
+
   const activeLoans = loans.filter(l => l.status === 'active');
   const totalToCollect = activeLoans.reduce((sum, l) => sum + l.cuotas.filter(c => c.status === 'pending').reduce((s, c) => s + c.amount, 0), 0);
   const totalEnMora = activeLoans.reduce((sum, l) => sum + l.cuotas.filter(c => c.status === 'pending' && c.dueDate < todayStr).reduce((s, c) => s + c.amount, 0), 0);
 
   const handlePayCuota = () => {
     if (!payMethod || !paymentModal) return;
+    
     const { loanId, cuotaIndex } = paymentModal;
     const loan = loans.find(l => l.id === loanId);
     const cuota = loan.cuotas[cuotaIndex];
-
+    
     // 1. Actualizar Préstamo (Marcar Cuota como pagada)
     const updatedLoans = loans.map(l => {
         if (l.id === loanId) {
@@ -585,7 +602,7 @@ function LoansView({ loans, setLoans, sales, setSales, paymentMethods }) {
   const handleSendReminder = (loan, cuota) => {
     if (!loan.client.phone) { alert('El cliente no tiene un teléfono registrado.'); return; }
     const phone = loan.client.phone.replace(/\D/g,'');
-    let text = `Hola ${loan.client.name}! 🏡\nTe recordamos desde MobiliaHome que el *${cuota.dueDate}* vence tu cuota ${cuota.numero} por *${formatCurrency(cuota.amount)}*.\n\n(Omitir este mensaje si ya realizaste el pago).\n¡Saludos!`;
+    let text = `Hola ${loan.client.name}! 🏡\nTe recordamos desde MobiliaHome que el *${cuota.dueDate}* vence tu cuota ${cuota.numero} por *${formatCurrency(cuota.amount)}*.\n\n(Omitir este mensaje si ya realizaste el pago). ¡Saludos!`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -637,7 +654,7 @@ function LoansView({ loans, setLoans, sales, setSales, paymentMethods }) {
                       const totalCuotas = loan.cuotas.length;
                       const deuda = loan.cuotas.filter(c => c.status === 'pending').reduce((s,c) => s + c.amount, 0);
                       const hasMora = loan.cuotas.some(c => c.status === 'pending' && c.dueDate < todayStr);
-
+                      
                       return (
                       <tr key={loan.id} className="hover:bg-stone-50/50 transition">
                         <td className="p-6"><p className="font-black text-sm text-stone-800">{loan.id}</p><p className="text-[9px] font-bold text-stone-400 mt-1 uppercase tracking-widest">Ref: {loan.saleId}</p></td>
@@ -684,7 +701,7 @@ function LoansView({ loans, setLoans, sales, setSales, paymentMethods }) {
                                     <Phone className="w-3.5 h-3.5" /> Chat
                                  </a>
                                  <button onClick={() => handleSendWelcome(selectedLoan)} className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
-                                     <MessageCircle className="w-3.5 h-3.5" /> Enviar Plan
+                                    <MessageCircle className="w-3.5 h-3.5" /> Enviar Plan
                                  </button>
                                </div>
                             )}
@@ -773,6 +790,7 @@ function LoanReportsView({ loans, sales }) {
   const [endDate, setEndDate] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 3); return d.toISOString().split('T')[0]; // Por defecto 3 meses hacia adelante
   });
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   const reportData = useMemo(() => {
@@ -825,6 +843,7 @@ function LoanReportsView({ loans, sales }) {
        if (loanPending > 0) {
           vencerTotalQ++;
           if (loan.cuotas.some(c => c.status === 'pending' && c.dueDate < todayStr)) moraQ++;
+          
           if (!catMap[mainCat]) catMap[mainCat] = { ars: 0, qty: 0 };
           catMap[mainCat].ars += loanPending;
           catMap[mainCat].qty += 1;
@@ -837,6 +856,7 @@ function LoanReportsView({ loans, sales }) {
       caidaMes: Object.entries(caidaMensualMap).map(([k, v]) => ({ label: k, value: v })).sort((a,b)=>a.label.localeCompare(b.label)),
       caidaSemana: Object.entries(caidaSemanalMap).map(([k, v]) => ({ label: k, value: v })).sort((a,b)=>a.label.localeCompare(b.label))
     };
+
   }, [loans, sales, startDate, endDate, todayStr]);
 
   return (
@@ -901,7 +921,7 @@ function LoanReportsView({ loans, sales }) {
                  {reportData.caidaMes.length === 0 && <p className="text-[10px] text-stone-400 font-bold uppercase">Sin cuotas en período</p>}
                  {reportData.caidaMes.map((cm, i) => (
                     <div key={i} className="flex justify-between items-center text-xs font-bold border-b border-stone-200/50 pb-2">
-                       <span className="text-stone-600">{cm.label}</span><span className="text-emerald-600">{formatCurrency(cm.value)}</span>
+                      <span className="text-stone-600">{cm.label}</span><span className="text-emerald-600">{formatCurrency(cm.value)}</span>
                     </div>
                  ))}
                </div>
@@ -925,7 +945,6 @@ function LoanReportsView({ loans, sales }) {
 }
 
 // --- VISTAS DEL SISTEMA (RESTO) ---
-
 function DashboardView({ sales, products, purchases, transfers, accounts, paymentMethods, taxRules, paymentBonuses }) {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0];
@@ -1019,6 +1038,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
 
         if (monthIndex !== -1) {
           data[monthIndex].in += p.amount;
+
           if (subtotalCart > 0 && paymentBonuses && taxRules) {
               const bonus = paymentBonuses.find(b => b.method === p.method)?.value || 0;
               const amountCoveredBase = p.amount / (1 - (bonus / 100));
@@ -1042,6 +1062,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
                   });
 
                   const netProfit = itemSubtotal - itemCMV - itemDiscount - itemTaxes;
+
                   if (!map[item.category]) map[item.category] = [0,0,0,0,0,0];
                   map[item.category][monthIndex] += netProfit;
               });
@@ -1057,6 +1078,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
       const match = data.find(x => x.m === pMonth && x.y === pYear);
       if (match) match.out += p.amount;
     });
+
     return { monthsData: data, catProfitMap: map };
   }, [sales, purchases, endDate, paymentBonuses, taxRules]);
 
@@ -1070,10 +1092,12 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
   // Controladores del Gráfico SVG
   const [hoverPoint, setHoverPoint] = useState(null);
   const CAT_COLORS = ['#b5a898', '#10b981', '#f43f5e'];
+  
   const allVals = top3Cats.flatMap(cat => catProfitMap[cat]);
   const maxProfit = allVals.length > 0 ? Math.max(10, ...allVals) : 10;
   const minProfit = allVals.length > 0 ? Math.min(0, ...allVals) : 0;
   const rangeProfit = maxProfit - minProfit;
+
   const getY = (val) => 130 - ((val - minProfit) / rangeProfit) * 100;
   const getX = (idx) => 20 + (idx * 92); // Anchura 500, separaciones iguales
 
@@ -1164,7 +1188,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
                              <div className="w-full max-w-[24px] bg-[#b5a898] rounded-t-md transition-all duration-1000" style={{height: `${inHeight}%`}}></div>
                              <div className="w-full max-w-[24px] bg-stone-800 rounded-t-md transition-all duration-1000" style={{height: `${outHeight}%`}}></div>
                           </div>
-                         <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{m.label}</span>
+                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">{m.label}</span>
                        </div>
                      )
                   })}
@@ -1183,7 +1207,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
                    </div>
                </div>
                <div className="relative w-full flex-1">
-                  {top3Cats.length > 0 ? (
+                 {top3Cats.length > 0 ? (
                      <svg viewBox="0 0 500 160" className="w-full h-full overflow-visible" onMouseLeave={() => setHoverPoint(null)}>
                         {/* Líneas Base Cero */}
                         <line x1="20" y1={getY(0)} x2="480" y2={getY(0)} stroke="#e5e7eb" strokeWidth="2" strokeDasharray="4 4" />
@@ -1602,7 +1626,7 @@ function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm }) {
                                 {s.detailedCosts.length === 0 && <p className="text-xs text-stone-400">Sin costos extra registrados.</p>}
                                 {s.detailedCosts.map((cost, i) => (
                                   <div key={i} className="flex justify-between items-center text-xs font-bold text-stone-600">
-                                     <span>{cost.name}</span><span className="text-rose-500">-{formatCurrency(cost.amount)}</span>
+                                    <span>{cost.name}</span><span className="text-rose-500">-{formatCurrency(cost.amount)}</span>
                                   </div>
                                 ))}
                               </div>
@@ -1643,7 +1667,7 @@ function CashFlowView({ sales, purchases, transfers, setTransfers, accounts, sea
       alert("Por favor, revisa las cuentas y el monto de la transferencia.");
       return;
     }
-    setTransfers([{ ...transferForm, id: Date.now(), amount: amt }, ...(transfers || [])]);
+    setTransfers([{ ...transferForm, id: Date.now(), amount: amt }, ...transfers]);
     setIsTransferring(false);
     setTransferForm({ date: new Date().toISOString().split('T')[0], fromAccount: '', toAccount: '', amount: '', description: '' });
   };
@@ -1704,8 +1728,7 @@ function CashFlowView({ sales, purchases, transfers, setTransfers, accounts, sea
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `Flujo_Caja_${startDate}_al_${endDate}.csv`;
-    document.body.appendChild(link);
-    link.click(); document.body.removeChild(link);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
   return (
@@ -1790,20 +1813,23 @@ function CashFlowView({ sales, purchases, transfers, setTransfers, accounts, sea
     </div>
   );
 }
+
 // --- VISTAS INVENTARIO Y EXCEL ---
 
 function MassUploadModal({ onUpload, onClose, categoryMargins }) {
-  const [step, setStep] = useState('upload');
+  const [step, setStep] = useState('upload'); 
   const [csvHeaders, setCsvHeaders] = useState([]);
   const [csvRows, setCsvRows] = useState([]);
   const fileInputRef = useRef(null);
   const [mapping, setMapping] = useState({ name: -1, category: -1, supplier: -1, stock: -1, minStock: -1, cost: -1, iva: -1, margin: -1, material: -1, dimensions: -1 });
+
   const SYSTEM_FIELDS = [
     { key: 'name', label: 'Nombre' }, { key: 'category', label: 'Categoría' }, { key: 'supplier', label: 'Proveedor' },
     { key: 'stock', label: 'Stock' }, { key: 'minStock', label: 'Mínimo' }, { key: 'cost', label: 'Costo' },
     { key: 'iva', label: 'IVA' }, { key: 'margin', label: 'Margen' }, { key: 'material', label: 'Material' },
     { key: 'dimensions', label: 'Medidas' }
   ];
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1855,11 +1881,12 @@ function MassUploadModal({ onUpload, onClose, categoryMargins }) {
     ];
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const link = document.createElement('a'); 
     link.href = URL.createObjectURL(blob); 
     link.download = 'Plantilla_Inventario.csv';
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
+
   return (
     <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-[2rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95">
@@ -1914,12 +1941,14 @@ function ProductForm({ categories, categoryMargins, editingProduct, onClose, onS
   const [formData, setFormData] = useState(editingProduct || {
     sku: generateSKU(), name: '', category: '', supplier: '', stock: 0, minStock: 5, cost: 0, iva: 21, margin: 50, price: 0, material: '', dimensions: ''
   });
+
   const handleCategoryChange = (e) => {
     const selectedCat = e.target.value;
     const defaultMarginObj = categoryMargins.find(m => m.category === selectedCat);
     const newMargin = defaultMarginObj ? defaultMarginObj.margin : 50;
     setFormData(prev => ({ ...prev, category: selectedCat, margin: newMargin }));
   };
+
   useEffect(() => {
     const costNum = parseFloat(formData.cost) || 0;
     const ivaNum = parseFloat(formData.iva) || 0;
@@ -1928,6 +1957,7 @@ function ProductForm({ categories, categoryMargins, editingProduct, onClose, onS
     const final = withIva * (1 + marginNum / 100);
     setFormData(prev => ({ ...prev, price: Math.round(final) }));
   }, [formData.cost, formData.iva, formData.margin]);
+
   return (
     <div className="bg-white border border-stone-200 rounded-[2rem] overflow-hidden shadow-xl animate-in zoom-in-95">
       <div className="bg-black p-6 flex justify-between items-center text-white">
@@ -2267,9 +2297,878 @@ function InventoryView({ products, setProducts, categories, categoryMargins, sea
   );
 }
 
+// --- VISTAS VENTAS ---
+
+function SaleDetailModal({ sale, onClose, paymentMethods, paymentBonuses, onUpdateSale }) {
+  const subtotal = sale.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
+  
+  const amountCoveredBase = sale.payments?.reduce((acc, p) => {
+    const bonus = sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0);
+    return acc + (p.amount / (1 - (bonus / 100)));
+  }, 0) || 0;
+  
+  const balance = subtotal - amountCoveredBase;
+  const actualTotalPaid = sale.payments?.reduce((acc, p) => acc + p.amount, 0) || 0;
+
+  const [tempMethod, setTempMethod] = useState('');
+  const [tempAmount, setTempAmount] = useState('');
+  const [newPaymentDate, setNewPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const currentBonusVal = sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === tempMethod)?.value || 0);
+
+  useEffect(() => {
+    if (tempMethod && balance > 0) {
+      const maxToPay = balance * (1 - (currentBonusVal / 100));
+      setTempAmount(maxToPay.toFixed(2));
+    } else {
+      setTempAmount('');
+    }
+  }, [tempMethod, balance, currentBonusVal]);
+
+  const handleAddPayment = () => {
+    const a = parseFloat(tempAmount);
+    if (!tempMethod || isNaN(a) || a <= 0) return;
+    
+    const newPayment = {
+      id: Date.now() + Math.random(),
+      method: tempMethod, amount: a, date: newPaymentDate
+    };
+
+    const updatedSale = { ...sale, payments: [...(sale.payments || []), newPayment] };
+    onUpdateSale(updatedSale);
+    setTempMethod(''); setTempAmount('');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2rem] w-full max-w-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+        <div className="bg-black p-6 flex justify-between items-center text-white shrink-0">
+          <h3 className="font-bold uppercase tracking-widest text-xs flex items-center gap-2"><Receipt className="w-5 h-5 text-[#b5a898]" /> Comprobante #{String(sale.id).split('-')[1] || String(sale.id)}</h3>
+          <button onClick={onClose} className="hover:text-[#b5a898] transition"><X className="w-5 h-5" /></button>
+        </div>
+        
+        <div className="p-8 overflow-y-auto flex-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <div className="mb-8">
+                 <h4 className="text-[10px] text-stone-400 mb-4 tracking-widest border-b border-stone-200 pb-2 font-bold uppercase">Artículos Vendidos</h4>
+                 <table className="w-full text-left">
+                    <thead>
+                      <tr className="text-[9px] text-stone-400 uppercase tracking-widest"><th className="pb-2">Producto</th><th className="pb-2 text-center">Cant.</th><th className="pb-2 text-right">Subtotal</th></tr>
+                    </thead>
+                    <tbody className="text-xs">
+                      {sale.items.map((item, idx) => (
+                        <tr key={idx} className="border-b border-stone-100 last:border-0">
+                          <td className="py-3 font-bold text-stone-800">{String(item.name)} <span className="text-[8px] font-black text-[#b5a898] block tracking-widest mt-0.5 uppercase">{String(item.category)}</span></td>
+                          <td className="py-3 text-center font-black">{String(item.qty)}</td>
+                          <td className="py-3 text-right font-black text-stone-900">{formatCurrency(item.price * item.qty)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                 </table>
+              </div>
+              <div>
+                 <h4 className="text-[10px] text-stone-400 mb-4 tracking-widest border-b border-stone-200 pb-2 font-bold uppercase">Pagos Registrados</h4>
+                 <div className="flex flex-col gap-3">
+                    {sale.payments && sale.payments.map((pay, idx) => (
+                      <div key={idx} className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex justify-between items-center shadow-sm">
+                         <div><span className="text-[10px] font-bold text-stone-500 tracking-widest uppercase block">{String(pay.method)}</span><span className="text-[8px] text-stone-400 font-bold tracking-widest uppercase">{pay.date || sale.date}</span></div>
+                         <span className="text-sm font-black text-emerald-600">{formatCurrency(pay.amount)}</span>
+                      </div>
+                    ))}
+                    {(!sale.payments || sale.payments.length === 0) && <p className="text-xs font-bold text-rose-500 uppercase">Sin pagos registrados</p>}
+                 </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-between h-full">
+               <div>
+                 <h4 className="text-[10px] text-stone-400 mb-4 tracking-widest border-b border-stone-200 pb-2 font-bold uppercase">Resumen de Operación</h4>
+                 <div className="bg-stone-50 rounded-[2rem] p-8 border border-stone-200 shadow-sm relative overflow-hidden">
+                    <div className="relative z-10">
+                      <div className="flex justify-between items-center mb-6 text-xs font-bold text-stone-500 uppercase tracking-widest border-b border-stone-200 pb-6">
+                        <span>Suma Lista</span><span className="text-stone-800 font-black">{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 text-stone-900">
+                        <span className="font-black text-xs uppercase tracking-widest text-emerald-600">Total Abonado</span>
+                        <div className="text-right"><span className="text-4xl font-black block tracking-tighter text-emerald-600">{formatCurrency(actualTotalPaid)}</span></div>
+                      </div>
+                      <div className={`mt-6 pt-6 border-t border-stone-200 flex justify-between items-center text-xs font-bold uppercase tracking-widest ${balance > 0.1 ? 'text-rose-500' : 'text-stone-400'}`}>
+                        <span>Saldo Pendiente</span><span className="font-black text-lg">{formatCurrency(balance)}</span>
+                      </div>
+                    </div>
+                 </div>
+               </div>
+
+               {balance > 0.1 && sale.type !== 'loan' && (
+                 <div className="mt-8 bg-white border border-stone-200 rounded-[1.5rem] p-6 shadow-sm">
+                   <h4 className="text-[10px] font-bold text-stone-800 uppercase tracking-widest mb-4">Registrar Nuevo Cobro</h4>
+                   <div className="space-y-4">
+                     <div className="flex gap-2">
+                       <input type="date" className="w-36 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none text-stone-600" value={newPaymentDate} onChange={e=>setNewPaymentDate(e.target.value)} />
+                       <select className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={tempMethod} onChange={(e)=>setTempMethod(e.target.value)}>
+                         <option value="">Medio de Pago...</option>
+                         {paymentMethods.map(p => <option key={String(p.name)} value={String(p.name)}>{String(p.name)}</option>)}
+                       </select>
+                     </div>
+                     <div className="flex gap-2">
+                       <input type="number" className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-black text-emerald-600 text-sm outline-none" value={tempAmount} onChange={(e)=>setTempAmount(e.target.value)} placeholder="Monto a cobrar..." />
+                       <button onClick={handleAddPayment} className="bg-black text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-800 transition">Cobrar</button>
+                     </div>
+                     {currentBonusVal > 0 && tempMethod && (<p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest text-center mt-2">Aplicando {currentBonusVal}% descuento</p>)}
+                   </div>
+                 </div>
+               )}
+               {sale.type === 'loan' && (
+                 <div className="mt-8 p-4 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl border border-blue-100 flex items-start gap-2">
+                   <Info className="w-4 h-4 shrink-0" /> Los cobros de este comprobante se gestionan desde el módulo de Préstamos (Cuotas).
+                 </div>
+               )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loanAdvances, onClose, onSave, editingSale, initialQuote }) {
+  const [saleMode, setSaleMode] = useState(editingSale?.type === 'loan' ? 'loan' : 'regular'); // 'regular' | 'loan'
+  
+  const [saleDate, setSaleDate] = useState(editingSale ? editingSale.date : new Date().toISOString().split('T')[0]);
+  const [cart, setCart] = useState(editingSale ? editingSale.items : initialQuote ? initialQuote.items : []);
+  const [payments, setPayments] = useState(editingSale ? editingSale.payments || [] : []);
+  
+  const [productSearch, setProductSearch] = useState('');
+  const [tempProductId, setTempProductId] = useState(null);
+  const [tempCategory, setTempCategory] = useState('');
+  const [tempPrice, setTempPrice] = useState('');
+  const [tempCost, setTempCost] = useState(''); 
+  const [tempIva, setTempIva] = useState('21'); 
+  const [tempQty, setTempQty] = useState('1');
+  const [showResults, setShowResults] = useState(false);
+  const [tempPaymentMethod, setTempPaymentMethod] = useState('');
+  const [tempPaymentAmount, setTempPaymentAmount] = useState('');
+
+  // Préstamo State
+  const [clientName, setClientName] = useState(initialQuote ? initialQuote.client.name : '');
+  const [clientPhone, setClientPhone] = useState(initialQuote ? initialQuote.client.phone : '');
+  const [clientDNI, setClientDNI] = useState(initialQuote ? initialQuote.client.dni : '');
+  const [loanInterest, setLoanInterest] = useState('0');
+  const [loanCuotas, setLoanCuotas] = useState('3');
+  const [firstDueDate, setFirstDueDate] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().split('T')[0];
+  });
+
+  const filteredInventory = useMemo(() => {
+    if (!productSearch || productSearch.length < 1) return [];
+    return products.filter(p => String(p.name).toLowerCase().includes(productSearch.toLowerCase()));
+  }, [productSearch, products]);
+
+  const subtotalCart = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+  const amountCoveredBase = payments.reduce((acc, p) => {
+    const bonus = saleMode === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0);
+    return acc + (p.amount / (1 - (bonus / 100)));
+  }, 0);
+  
+  const balanceBase = subtotalCart - amountCoveredBase;
+  const actualTotalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
+  const currentBonusVal = saleMode === 'loan' ? 0 : (paymentBonuses.find(b => b.method === tempPaymentMethod)?.value || 0);
+  
+  const consolidatedBonus = amountCoveredBase - actualTotalPaid;
+  const projectedBonus = balanceBase > 0 && saleMode !== 'loan' ? balanceBase * (currentBonusVal / 100) : 0;
+  
+  const displayBonus = consolidatedBonus + projectedBonus;
+  const displaySaldo = balanceBase > 0 ? balanceBase - projectedBonus : 0;
+
+  const minAdvanceRequired = useMemo(() => {
+     if (saleMode !== 'loan') return 0;
+     return cart.reduce((acc, item) => {
+       const conf = loanAdvances?.find(a => a.category === item.category) || { advancePercent: 0 };
+       return acc + (item.price * item.qty * (conf.advancePercent / 100));
+     }, 0);
+  }, [cart, saleMode, loanAdvances]);
+
+  useEffect(() => {
+    if (tempPaymentMethod && balanceBase > 0) {
+      setTempPaymentAmount((balanceBase * (1 - (currentBonusVal / 100))).toFixed(2));
+    } else if (!tempPaymentMethod) {
+      setTempPaymentAmount('');
+    }
+  }, [tempPaymentMethod, balanceBase, currentBonusVal]);
+
+  const handleMaxPayment = () => { if (balanceBase > 0) setTempPaymentAmount((balanceBase * (1 - (currentBonusVal / 100))).toFixed(2)); };
+
+  const addToCart = () => {
+    const p = parseFloat(tempPrice);
+    if (!productSearch || !tempCategory || isNaN(p) || p <= 0) return;
+    setCart([...cart, { id: Date.now() + Math.random(), productId: tempProductId, name: productSearch, category: tempCategory, price: p, cost: parseFloat(tempCost)||0, iva: parseFloat(tempIva)||21, qty: parseInt(tempQty)||1 }]);
+    setProductSearch(''); setTempCategory(''); setTempPrice(''); setTempCost(''); setTempQty('1'); setTempProductId(null);
+  };
+
+  const addPayment = () => {
+    const a = parseFloat(tempPaymentAmount);
+    if (!tempPaymentMethod || isNaN(a) || a <= 0) return;
+    setPayments([...payments, { id: Date.now() + Math.random(), method: tempPaymentMethod, amount: a, date: saleDate, note: saleMode === 'loan' ? 'Anticipo Préstamo' : '' }]);
+    setTempPaymentMethod(''); setTempPaymentAmount('');
+  };
+
+  const handleSave = () => {
+    if (cart.length === 0) return;
+    const saleId = editingSale ? editingSale.id : `V-${Math.floor(Math.random()*9000)+1000}`;
+    const newSale = { id: saleId, items: cart, date: saleDate, total: actualTotalPaid, payments: payments, type: saleMode };
+    
+    let loanData = null;
+    if (saleMode === 'loan') {
+       const interestNum = parseFloat(loanInterest) || 0;
+       const cuotasNum = parseInt(loanCuotas) || 1;
+       const baseToFinance = balanceBase;
+       const totalFinanced = baseToFinance * (1 + (interestNum / 100));
+       const cuotaAmount = totalFinanced / cuotasNum;
+       
+       const cuotasArray = [];
+       let currentDueDate = new Date(firstDueDate);
+       for (let i = 1; i <= cuotasNum; i++) {
+          cuotasArray.push({
+             numero: i,
+             amount: cuotaAmount,
+             dueDate: currentDueDate.toISOString().split('T')[0],
+             status: 'pending'
+          });
+          currentDueDate.setMonth(currentDueDate.getMonth() + 1);
+       }
+       
+       loanData = {
+          id: `L-${Date.now()}`,
+          saleId: saleId,
+          client: { name: clientName, phone: clientPhone, dni: clientDNI },
+          baseAmount: baseToFinance,
+          interestRate: interestNum,
+          totalFinanced: totalFinanced,
+          cuotas: cuotasArray,
+          status: 'active'
+       };
+    }
+    
+    onSave({ sale: newSale, loan: loanData });
+  };
+
+  const isSaveDisabled = cart.length === 0 || 
+                         (saleMode === 'regular' && balanceBase < -0.1) || 
+                         (saleMode === 'loan' && (!clientName.trim() || !clientDNI.trim() || balanceBase <= 0 || actualTotalPaid < minAdvanceRequired));
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in zoom-in-95 duration-300">
+      <div className="lg:col-span-2 space-y-6">
+        
+        {/* Toggle Mode */}
+        {!editingSale && (
+           <div className="flex gap-2 p-1.5 bg-stone-200 rounded-xl w-fit">
+              <button type="button" onClick={()=>setSaleMode('regular')} className={`px-6 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition ${saleMode === 'regular' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>Venta Regular / Contado</button>
+              <button type="button" onClick={()=>setSaleMode('loan')} className={`px-6 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition flex items-center gap-2 ${saleMode === 'loan' ? 'bg-blue-600 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}><BadgeDollarSign className="w-4 h-4"/> Préstamo Personal</button>
+           </div>
+        )}
+
+        {/* 1. Products */}
+        <div className="bg-white border border-stone-200 rounded-[2rem] p-8 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-stone-100 pb-4">
+            <h4 className="text-sm font-black uppercase tracking-widest text-stone-800 flex items-center gap-2"><Armchair className="w-5 h-5 text-[#b5a898]" /> 1. Selección de Productos</h4>
+            <div className="flex items-center gap-2 bg-stone-50 px-3 py-2 rounded-xl border border-stone-200">
+              <Clock className="w-4 h-4 text-stone-400" /><span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Fecha Venta:</span>
+              <input type="date" className="bg-transparent text-xs font-bold text-stone-800 outline-none" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="space-y-2 relative"><label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Artículo (Inventario)</label>
+              <input type="text" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={productSearch} onChange={(e) => { setProductSearch(e.target.value); setShowResults(true); }} placeholder="Buscar o escribir..." />
+              {showResults && filteredInventory.length > 0 && (
+                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                   {filteredInventory.map(p => (
+                     <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { setTempProductId(p.id); setProductSearch(String(p.name)); setTempCategory(String(p.category)); setTempPrice(String(p.price)); setTempCost(String(p.cost||0)); setTempIva(String(p.iva||21)); setShowResults(false); }} className="w-full text-left p-3 hover:bg-stone-50 border-b border-stone-100 flex justify-between items-center transition">
+                       <span className="font-bold text-sm text-stone-800">{String(p.name)}</span><span className="text-stone-400 text-[9px] font-black uppercase tracking-widest">{String(p.category)}</span>
+                     </button>
+                   ))}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2"><label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Categoría</label>
+              <select className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={tempCategory} onChange={(e)=>setTempCategory(e.target.value)}>
+                <option value="">Seleccione...</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2"><label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Precio Lista ($)</label>
+              <input type="number" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-black text-[#8c8173] outline-none text-sm" value={tempPrice} onChange={(e)=>setTempPrice(e.target.value)} />
+            </div>
+            <div className="space-y-2 flex gap-2 items-end"><div className="flex-1">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Cantidad</label>
+              <input type="number" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-black text-sm outline-none" value={tempQty} onChange={(e)=>setTempQty(e.target.value)} /></div>
+              <button type="button" onClick={addToCart} className="bg-black text-white p-3.5 rounded-xl hover:bg-stone-800 transition shadow-sm"><Plus className="w-5 h-5" /></button>
+            </div>
+          </div>
+          <div className="border-t border-stone-100 pt-6 space-y-3">
+            {cart.map(item => (
+              <div key={item.id} className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-100">
+                <div><p className="font-bold text-sm text-stone-800">{item.name}</p><p className="text-[9px] font-black uppercase text-stone-400 tracking-widest">{item.category} • x{item.qty}</p></div>
+                <div className="flex items-center gap-6"><p className="font-black text-base text-stone-900">{formatCurrency(item.price * item.qty)}</p>
+                <button onClick={() => setCart(cart.filter(i => i.id !== item.id))} className="p-2 text-stone-300 hover:text-red-500 transition"><Trash2 className="w-4 h-4" /></button></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 2. Payments / Anticipo */}
+        <div className="bg-white border border-stone-200 rounded-[2rem] p-8 shadow-sm">
+          <h4 className="text-sm font-black uppercase tracking-widest text-stone-800 mb-6 flex items-center gap-2"><Wallet className="w-5 h-5 text-emerald-500" /> 2. {saleMode === 'loan' ? 'Anticipo (Opcional)' : 'Registro de Pagos'}</h4>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1 space-y-2"><label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest flex justify-between">Medio Abonado {currentBonusVal > 0 && saleMode !== 'loan' && <span className="text-emerald-500">(-{currentBonusVal}%)</span>}</label>
+              <select className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={tempPaymentMethod} onChange={(e)=>setTempPaymentMethod(e.target.value)}>
+                <option value="">Seleccione Pago...</option>{paymentMethods.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+              </select>
+            </div>
+            <div className="flex-1 space-y-2"><label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Monto a Cobrar ($)</label>
+              <div className="relative"><input type="number" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-black text-emerald-600 text-sm pr-16 outline-none" value={tempPaymentAmount} onChange={(e)=>setTempPaymentAmount(e.target.value)} />
+              {balanceBase > 0 && tempPaymentMethod && <button type="button" onClick={handleMaxPayment} className="absolute right-2 top-2.5 px-2 py-1 bg-white border border-stone-200 text-[9px] font-bold uppercase rounded text-stone-500 hover:text-emerald-600 shadow-sm transition">Máx</button>}</div>
+            </div>
+            <button type="button" onClick={addPayment} className="self-end bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition shadow-sm">Añadir Pago</button>
+          </div>
+          <div className="space-y-3">
+            {payments.map(pay => {
+               const b = paymentBonuses.find(x => x.method === pay.method)?.value || 0;
+               return (
+                <div key={pay.id} className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
+                  <div className="flex items-center gap-3"><CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <div><span className="font-bold text-sm text-emerald-900 block">{pay.method}</span><span className="text-[9px] text-emerald-700 uppercase font-bold tracking-widest block">Saldó: {saleMode === 'loan' ? formatCurrency(pay.amount) : formatCurrency(pay.amount / (1 - (b/100)))}</span></div>
+                  </div>
+                  <div className="flex items-center gap-4"><span className="font-black text-emerald-700 text-base">{formatCurrency(pay.amount)}</span><button onClick={() => setPayments(payments.filter(p => p.id !== pay.id))} className="text-stone-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4"/></button></div>
+                </div>
+               )
+            })}
+            {saleMode === 'loan' && (
+              <div className="mt-8 p-4 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl border border-blue-100 flex items-start gap-2">
+                <Info className="w-4 h-4 shrink-0" /> Los cobros de este comprobante se gestionan desde el módulo de Préstamos (Cuotas). No aplican bonificaciones comerciales.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 3. Loan Plan */}
+        {saleMode === 'loan' && (
+          <div className="bg-white border border-stone-200 rounded-[2rem] p-8 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex justify-between items-center mb-6">
+               <h4 className="text-sm font-black uppercase tracking-widest text-stone-800 flex items-center gap-2">
+                 <Users className="w-5 h-5 text-blue-500" /> 3. Plan de Financiación y Cliente
+               </h4>
+               <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${actualTotalPaid >= minAdvanceRequired ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
+                  Anticipo Mín. Requerido: {formatCurrency(minAdvanceRequired)}
+               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-500 uppercase">Nombre Cliente *</label>
+                <input required type="text" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500" value={clientName} onChange={e=>setClientName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-500 uppercase">DNI *</label>
+                <input required type="text" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500" value={clientDNI} onChange={e=>setClientDNI(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-500 uppercase">WhatsApp</label>
+                <input type="text" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500" value={clientPhone} onChange={e=>setClientPhone(e.target.value)} placeholder="Ej: 54911..." />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-500 uppercase">Interés / Recargo (%)</label>
+                <input type="number" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-black text-blue-600 text-sm outline-none" value={loanInterest} onChange={e=>setLoanInterest(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-500 uppercase">Cant. Cuotas</label>
+                <input type="number" min="1" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-black text-sm outline-none" value={loanCuotas} onChange={e=>setLoanCuotas(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-stone-500 uppercase">1er Vencimiento</label>
+                <input type="date" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={firstDueDate} onChange={e=>setFirstDueDate(e.target.value)} />
+              </div>
+            </div>
+            
+            {balanceBase > 0 && loanCuotas > 0 && (
+              <div className="mt-6 bg-blue-50 border border-blue-100 p-6 rounded-2xl flex flex-col sm:flex-row justify-between sm:items-center text-blue-900 gap-4">
+                 <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">A Financiar (con recargo)</p>
+                    <p className="font-black text-xl">{formatCurrency(balanceBase * (1 + ((parseFloat(loanInterest)||0)/100)))}</p>
+                 </div>
+                 <div className="sm:text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Valor de Cuota (x{loanCuotas})</p>
+                    <p className="font-black text-3xl tracking-tight">{formatCurrency((balanceBase * (1 + ((parseFloat(loanInterest)||0)/100))) / (parseInt(loanCuotas)||1))}</p>
+                 </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-6">
+        <div className="bg-black text-white rounded-[2.5rem] p-8 shadow-xl sticky top-10 text-center">
+          <h4 className="text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-[#b5a898]">
+            {editingSale ? 'Editando Venta' : saleMode === 'loan' ? 'Plan de Financiación' : initialQuote ? `Liquidación (De Presup. ${initialQuote.id})` : 'Liquidación Cliente'}
+          </h4>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center text-stone-400 border-b border-stone-800 pb-4"><span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Suma Lista</span><span className="font-black text-white text-xl">{formatCurrency(subtotalCart)}</span></div>
+            <div className="space-y-5">
+              {saleMode !== 'loan' && (
+                <div className={`p-4 rounded-xl border flex justify-between items-center transition-colors ${displayBonus > 0 ? 'bg-[#b5a898]/20 border-[#b5a898]/30 text-[#b5a898]' : 'bg-transparent border-transparent text-stone-500'}`}><span className="text-[9px] font-bold uppercase tracking-widest">Bonificaciones</span><span className="text-lg font-black">-{formatCurrency(displayBonus)}</span></div>
+              )}
+              <div className="pt-4 text-center"><p className="text-[9px] font-bold uppercase text-stone-500 mb-1 tracking-[0.2em]">{saleMode === 'loan' ? 'Anticipo Abonado' : 'Total Final Cobrado'}</p><p className="text-5xl font-black tracking-tighter text-emerald-400">{formatCurrency(actualTotalPaid)}</p></div>
+              <div className={`p-3 rounded-xl flex justify-between items-center transition-colors ${displaySaldo <= 0.1 && saleMode !== 'loan' ? 'text-emerald-500' : saleMode === 'loan' ? 'text-blue-400' : 'text-rose-400'}`}><span className="text-[9px] font-bold uppercase tracking-widest">{saleMode === 'loan' ? 'Capital a Financiar' : 'Saldo a cubrir'}</span><span className="text-sm font-black">{formatCurrency(balanceBase)}</span></div>
+            </div>
+          </div>
+          <button onClick={handleSave} disabled={isSaveDisabled} className="w-full bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-[#a39686] transition mt-8 shadow-lg disabled:opacity-10 active:scale-95 flex items-center justify-center gap-2">
+            {saleMode === 'loan' ? 'Confirmar Crédito' : balanceBase > 0.1 ? 'Vender con Saldo Pendiente' : 'Confirmar Venta'} <ArrowRight className="w-4 h-4" />
+          </button>
+          <button onClick={onClose} className="w-full text-stone-500 text-[10px] font-bold uppercase tracking-widest mt-6 hover:text-white transition">Cancelar y Volver</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SalesView({ sales, setSales, loans, setLoans, products, setProducts, paymentMethods, taxRules, categories, paymentBonuses, loanAdvances, quoteToConvert, clearQuoteToConvert, onSaleSaved }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingSale, setEditingSale] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedSaleDetail, setSelectedSaleDetail] = useState(null);
+
+  useEffect(() => {
+    if (quoteToConvert) {
+       setEditingSale(null);
+       setIsAdding(true);
+    }
+  }, [quoteToConvert]);
+
+  const filteredSales = useMemo(() => {
+    let filtered = sales;
+    if (startDate) filtered = filtered.filter(s => s.date >= startDate);
+    if (endDate) filtered = filtered.filter(s => s.date <= endDate);
+    if (searchTerm) filtered = filtered.filter(s => String(s.id).toLowerCase().includes(searchTerm.toLowerCase()) || s.items.some(i => String(i.name).toLowerCase().includes(searchTerm.toLowerCase())));
+    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [sales, searchTerm, startDate, endDate]);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <h3 className="text-xl font-bold flex items-center gap-3 text-stone-900"><div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><ShoppingCart className="w-6 h-6" /></div>Ventas Realizadas</h3>
+        {!isAdding && (
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-stone-200">
+              <div className="flex items-center gap-2 px-3"><Filter className="w-4 h-4 text-stone-400" /><input type="date" className="bg-transparent text-sm font-bold text-stone-800 outline-none" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
+              <div className="w-px h-6 bg-stone-200"></div>
+              <div className="flex items-center gap-2 px-3"><input type="date" className="bg-transparent text-sm font-bold text-stone-800 outline-none" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+            </div>
+            <button onClick={() => { setEditingSale(null); setIsAdding(true); }} className="bg-black text-white px-6 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-800 transition shadow-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Nueva Venta</button>
+          </div>
+        )}
+      </div>
+
+      {selectedSaleDetail && <SaleDetailModal sale={selectedSaleDetail} onClose={() => setSelectedSaleDetail(null)} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onUpdateSale={(updated) => { setSales(sales.map(s => s.id === updated.id ? updated : s)); setSelectedSaleDetail(updated); }} />}
+
+      {isAdding ? <NewSaleForm products={products} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} editingSale={editingSale} initialQuote={quoteToConvert} onClose={() => { setIsAdding(false); setEditingSale(null); if(clearQuoteToConvert) clearQuoteToConvert(); }} onSave={({ sale, loan }) => { 
+          if (editingSale) {
+             setSales(sales.map(s => s.id === sale.id ? sale : s));
+          } else {
+             setSales([sale, ...sales]);
+             if (loan) setLoans([loan, ...loans]);
+
+             // Descontar inventario automáticamente
+             let updatedProducts = [...products];
+             sale.items.forEach(cartItem => {
+                updatedProducts = updatedProducts.map(p => 
+                   (p.id === cartItem.productId || p.name === cartItem.name) 
+                   ? { ...p, stock: Math.max(0, p.stock - cartItem.qty) } 
+                   : p
+                );
+             });
+             setProducts(updatedProducts);
+          }
+          if (onSaleSaved) onSaleSaved(sale);
+          setIsAdding(false); 
+          setEditingSale(null); 
+          if (clearQuoteToConvert) clearQuoteToConvert();
+       }} /> : (
+        <div className="grid grid-cols-1 gap-4">
+          {filteredSales.map(sale => {
+            const subtotal = sale.items.reduce((acc, i) => acc + (i.price * i.qty), 0);
+            const amountCoveredBase = sale.payments?.reduce((acc, p) => acc + (p.amount / (1 - (sale.type === 'loan' ? 0 : ((paymentBonuses.find(b => b.method === p.method)?.value || 0) / 100)))), 0) || 0;
+            const balance = subtotal - amountCoveredBase;
+
+            return (
+            <div key={sale.id} className="bg-white border border-stone-200 p-6 rounded-[2rem] flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm hover:shadow-md transition group hover:border-[#b5a898]">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-stone-50 flex items-center justify-center font-black text-stone-400 text-sm group-hover:bg-[#b5a898]/10 group-hover:text-[#b5a898] transition">#{String(sale.id).split('-')[1]}</div>
+                <div>
+                   <h4 className="font-bold text-stone-800 text-base">{sale.items.length === 1 ? String(sale.items[0].name) : `${sale.items.length} productos`}</h4>
+                   <p className="text-[10px] font-bold uppercase text-stone-400 mt-1 flex items-center gap-1 tracking-widest"><Clock className="w-3 h-3"/> {String(sale.date)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="flex flex-col md:items-end gap-1">
+                  <p className="text-2xl font-black text-stone-900 tracking-tight">{formatCurrency(subtotal)}</p>
+                  {sale.type === 'loan' ? <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-[9px] font-black uppercase tracking-widest">En Préstamo</span> : balance > 0.1 ? <span className="px-3 py-1 bg-rose-100 text-rose-700 rounded-md text-[9px] font-black uppercase tracking-widest">Debe {formatCurrency(balance)}</span> : <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-md text-[9px] font-black uppercase tracking-widest">Cobrado</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSelectedSaleDetail(sale)} className={`hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition shadow-sm ${balance > 0.1 && sale.type !== 'loan' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-stone-50 text-stone-500 hover:bg-[#b5a898] hover:text-white'}`}>
+                    {balance > 0.1 && sale.type !== 'loan' ? 'Cobrar' : 'Comprobante'} <ChevronRight className="w-4 h-4" />
+                  </button>
+                  {sale.type !== 'loan' ? (
+                     <button onClick={() => { setEditingSale(sale); setIsAdding(true); }} className="p-3 bg-stone-50 text-stone-500 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition" title="Editar Venta"><Pencil className="w-4 h-4" /></button>
+                  ) : (
+                     <span className="p-3 text-stone-300" title="Préstamo vinculado (Edición bloqueada)"><Pencil className="w-4 h-4" /></span>
+                  )}
+                  <button onClick={() => {if(confirm("¿Seguro?")) { setSales(sales.filter(s => s.id !== sale.id)); setLoans(loans.filter(l => l.saleId !== sale.id)); } }} className="p-3 bg-stone-50 text-stone-500 rounded-xl hover:bg-rose-50 hover:text-rose-600 transition" title="Eliminar Venta"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            </div>
+            )
+          })}
+          {filteredSales.length === 0 && <div className="py-20 text-center opacity-30"><ShoppingCart className="w-16 h-16 mx-auto mb-4" /><p className="font-bold uppercase tracking-widest text-[10px]">Sin ventas</p></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- VISTA DE COMPRAS Y OTRAS VISTAS SE MANTIENEN IGUAL ... ---
+
+function PurchasesView({ purchases, setPurchases, paymentMethods, expenseCategories, searchTerm }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [draftExpenses, setDraftExpenses] = useState([]);
+  const [form, setForm] = useState({ description: '', category: expenseCategories[0] || 'Otros', paymentMethod: paymentMethods[0]?.name || 'Efectivo', netAmount: '', ivaAmount: '', iibbAmount: '', date: new Date().toISOString().split('T')[0] });
+  const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  const filteredPurchases = useMemo(() => {
+    let filtered = purchases;
+    if (startDate) filtered = filtered.filter(p => p.date >= startDate);
+    if (endDate) filtered = filtered.filter(p => p.date <= endDate);
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(p => String(p.description).toLowerCase().includes(term) || String(p.category).toLowerCase().includes(term));
+    }
+    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [purchases, searchTerm, startDate, endDate]);
+
+  const addDraft = (e) => {
+    e.preventDefault();
+    if (!form.description || !form.netAmount) return;
+    const net = parseFloat(form.netAmount) || 0;
+    const iva = parseFloat(form.ivaAmount) || 0;
+    const iibb = parseFloat(form.iibbAmount) || 0;
+    
+    setDraftExpenses([{ ...form, id: Date.now() + Math.random(), netAmount: net, amount: net + iva + iibb, ivaAmount: iva, iibbAmount: iibb }, ...draftExpenses]);
+    setForm({...form, description: '', netAmount: '', ivaAmount: '', iibbAmount: ''});
+  };
+
+  const batchNet = draftExpenses.reduce((sum, item) => sum + item.netAmount, 0);
+  const batchIva = draftExpenses.reduce((sum, item) => sum + item.ivaAmount, 0);
+  const batchIibb = draftExpenses.reduce((sum, item) => sum + item.iibbAmount, 0);
+  const batchTotal = draftExpenses.reduce((sum, item) => sum + item.amount, 0);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <h3 className="text-xl font-bold flex items-center gap-3 text-stone-900"><div className="bg-rose-500/10 p-3 rounded-2xl text-rose-600 shadow-sm"><ShoppingBag className="w-6 h-6" /></div>Gastos Operativos</h3>
+        {!isAdding && (
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-stone-200">
+              <div className="flex items-center gap-2 px-3"><Filter className="w-4 h-4 text-stone-400" /><input type="date" className="bg-transparent text-sm font-bold text-stone-800 outline-none" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
+              <div className="w-px h-6 bg-stone-200"></div>
+              <div className="flex items-center gap-2 px-3"><input type="date" className="bg-transparent text-sm font-bold text-stone-800 outline-none" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+            </div>
+            <button onClick={() => setIsAdding(true)} className="bg-black text-white px-6 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-800 transition shadow-sm flex items-center gap-2"><Plus className="w-4 h-4 text-[#b5a898]" /> Nuevo Egreso</button>
+          </div>
+        )}
+      </div>
+      {isAdding ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in zoom-in-95">
+          <div className="lg:col-span-1 bg-white border border-rose-200 rounded-[2rem] p-6 shadow-md h-fit">
+            <form onSubmit={addDraft} className="space-y-4 text-stone-900">
+              <div className="space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Fecha</label><input type="date" className="w-full bg-stone-50 border border-stone-200 rounded-lg px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-rose-500" value={form.date} onChange={e => setForm({...form, date: e.target.value})} /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Concepto / Referencia</label><input required className="w-full bg-stone-50 border border-stone-200 rounded-lg px-4 py-2 text-sm font-bold outline-none" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Descripción..." /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Categoría P&L</label><select className="w-full bg-stone-50 border border-stone-200 rounded-lg px-4 py-2 text-sm font-bold outline-none" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>{expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Medio Pago</label><select className="w-full bg-stone-50 border border-stone-200 rounded-lg px-4 py-2 text-sm font-bold outline-none" value={form.paymentMethod} onChange={e => setForm({...form, paymentMethod: e.target.value})}>{paymentMethods.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}</select></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Neto ($)</label><input required type="number" step="0.01" className="w-full bg-stone-50 border border-stone-200 rounded-lg px-4 py-2 text-sm font-black text-stone-800 outline-none" value={String(form.netAmount)} onChange={e => setForm({...form, netAmount: e.target.value})} placeholder="Monto..." /></div>
+                <div className="space-y-1"><label className="text-[10px] font-bold text-emerald-600 uppercase">IVA ($)</label><input type="number" step="0.01" className="w-full bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-sm font-black text-emerald-700 outline-none" value={String(form.ivaAmount)} onChange={e => setForm({...form, ivaAmount: e.target.value})} placeholder="IVA" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-bold text-emerald-600 uppercase">IIBB ($)</label><input type="number" step="0.01" className="w-full bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-sm font-black text-emerald-700 outline-none" value={String(form.iibbAmount)} onChange={e => setForm({...form, iibbAmount: e.target.value})} placeholder="IIBB" /></div>
+              </div>
+              <div className="bg-stone-100 p-4 rounded-xl flex justify-between items-center border border-stone-200 mt-2">
+                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Total a Pagar</span>
+                 <span className="text-xl font-black text-rose-600">{formatCurrency((parseFloat(form.netAmount)||0) + (parseFloat(form.ivaAmount)||0) + (parseFloat(form.iibbAmount)||0))}</span>
+              </div>
+              <button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-bold uppercase text-[10px] mt-4 shadow-sm">Añadir al Lote</button>
+            </form>
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white border border-stone-200 rounded-[2rem] p-8 shadow-sm">
+              <h4 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">Lote a registrar</h4>
+              <div className="space-y-2">{draftExpenses.map(item => (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-stone-50 rounded-xl border border-stone-100">
+                  <div>
+                     <p className="font-bold text-stone-800 text-sm">{String(item.description)}</p>
+                     <p className="text-[9px] font-bold uppercase text-stone-400 tracking-widest">{String(item.category)} • {String(item.paymentMethod)}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                     <div className="text-right">
+                        <p className="font-black text-rose-600 text-base">{formatCurrency(item.amount)}</p>
+                        <p className="text-[9px] font-bold text-stone-400 uppercase">Neto: {formatCurrency(item.netAmount)}</p>
+                     </div>
+                     <button onClick={() => setDraftExpenses(draftExpenses.filter(i => i.id !== item.id))} className="p-2 text-stone-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}</div>
+            </div>
+            
+            {draftExpenses.length > 0 && (
+               <div className="bg-stone-900 text-white rounded-[2rem] p-8 shadow-xl">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#b5a898] mb-6 border-b border-stone-800 pb-4">Totalizador del Lote</h4>
+                  <div className="space-y-4 mb-8">
+                     <div className="flex justify-between items-center text-stone-400 text-xs font-bold uppercase tracking-widest">
+                        <span>Costo Neto Total</span><span className="text-white">{formatCurrency(batchNet)}</span>
+                     </div>
+                     <div className="flex justify-between items-center text-emerald-500 text-xs font-bold uppercase tracking-widest">
+                        <span>Impuestos Recuperables (IVA + IIBB)</span><span>{formatCurrency(batchIva + batchIibb)}</span>
+                     </div>
+                     <div className="flex justify-between items-center pt-4 border-t border-stone-800 text-sm font-black uppercase tracking-widest text-rose-400">
+                        <span>Total a Egresar (Caja)</span><span className="text-2xl">{formatCurrency(batchTotal)}</span>
+                     </div>
+                  </div>
+                  <button onClick={() => { setPurchases([...draftExpenses, ...purchases]); setDraftExpenses([]); setIsAdding(false); }} className="w-full bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-md hover:bg-[#a39686] transition">Confirmar Salida de Caja</button>
+               </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden">
+          <table className="w-full text-left text-stone-900">
+            <thead><tr className="bg-[#f4f2f0] text-stone-400 text-[10px] font-bold uppercase tracking-widest border-b border-stone-200"><th className="p-6">Fecha</th><th className="p-6">Detalle Operativo</th><th className="p-6 text-right">Monto</th><th className="p-6 text-center">Borrar</th></tr></thead>
+            <tbody className="divide-y divide-stone-100">
+              {filteredPurchases.map(p => (
+                <tr key={p.id} className="hover:bg-stone-50/50 transition">
+                  <td className="p-6 text-stone-400 text-xs font-bold"><div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> {String(p.date)}</div></td>
+                  <td className="p-6"><p className="font-bold text-stone-800 text-sm">{String(p.description)}</p><div className="flex gap-2 mt-1"><span className="text-[8px] bg-black text-white px-2 py-0.5 rounded uppercase font-bold tracking-wider">{String(p.category)}</span><span className="text-[8px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded uppercase font-bold tracking-wider border border-stone-200">{String(p.paymentMethod)}</span></div></td>
+                  <td className="p-6 text-right"><p className="font-black text-rose-600 text-lg">-{formatCurrency(p.amount)}</p><p className="text-[9px] font-bold text-stone-400 uppercase mt-0.5">Neto: {formatCurrency(p.netAmount)}</p></td>
+                  <td className="p-6 text-center"><button onClick={() => setPurchases(purchases.filter(x => x.id !== p.id))} className="p-3 text-stone-300 hover:text-red-500 transition hover:bg-rose-50 rounded-xl"><Trash2 className="w-4 h-4" /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredPurchases.length === 0 && <div className="py-20 text-center opacity-30"><ShoppingBag className="w-16 h-16 mx-auto mb-4" /><p className="font-bold uppercase tracking-widest text-[10px]">Sin gastos operativos</p></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MarginManager({ categories, categoryMargins, setCategoryMargins }) {
+  const getMargin = (cat) => { const m = categoryMargins.find(x => x.category === cat); return m ? m.margin : 50; };
+  const updateMargin = (cat, val) => { const num = parseFloat(val) || 0; const exists = categoryMargins.find(x => x.category === cat); if (exists) setCategoryMargins(categoryMargins.map(x => x.category === cat ? { ...x, margin: num } : x)); else setCategoryMargins([...categoryMargins, { category: cat, margin: num }]); };
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-400">
+      <div className="flex items-center gap-3 mb-8 text-stone-900"><div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><Percent className="w-6 h-6" /></div><h3 className="text-xl font-black">Márgenes Predeterminados</h3></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+         {categories.map(cat => (
+           <div key={cat} className="bg-white border p-5 rounded-xl flex justify-between items-center transition shadow-sm border-stone-200 hover:border-[#b5a898]"><span className="font-bold text-stone-800 text-sm uppercase">{String(cat)}</span><div className="flex items-center gap-2"><input type="number" className="w-20 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-right font-black text-[#8c8173] outline-none" value={String(getMargin(cat))} onChange={(e) => updateMargin(cat, e.target.value)} /><span className="text-stone-400 font-bold">%</span></div></div>
+         ))}
+      </div>
+    </div>
+  );
+}
+
+function AccountManager({ accounts, setAccounts }) {
+  const [newName, setNewName] = useState('');
+  const [newBalance, setNewBalance] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editBalance, setEditBalance] = useState('');
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    if(newName.trim() !== '') {
+      setAccounts([...accounts, { id: Date.now(), name: newName.trim(), initialBalance: parseFloat(newBalance) || 0 }]);
+      setNewName(''); setNewBalance('');
+    }
+  };
+
+  const handleSave = (id) => {
+    if(editName.trim() !== '') {
+      setAccounts(accounts.map(acc => acc.id === id ? { ...acc, name: editName.trim(), initialBalance: parseFloat(editBalance) || 0 } : acc));
+      setEditingId(null);
+    }
+  };
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 uppercase">
+      <div className="flex items-center gap-3 mb-8 text-stone-900"><div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><Landmark className="w-6 h-6" /></div><h3 className="text-xl font-black">Cuentas y Cajas</h3></div>
+      <form onSubmit={handleAdd} className="flex flex-wrap gap-3 mb-8">
+        <input type="text" placeholder="Nombre (Ej: Caja Fuerte)" className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-3 font-bold text-stone-800 text-sm outline-none" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <input type="number" placeholder="Saldo Inicial ($)" className="w-48 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 font-black text-emerald-700 text-sm outline-none" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} />
+        <button type="submit" className="bg-black text-white px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest">Crear</button>
+      </form>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {accounts.map(acc => (
+          <div key={acc.id} className={`bg-white border p-4 rounded-xl flex flex-col justify-between group shadow-sm transition ${editingId === acc.id ? 'border-[#b5a898] ring-2 ring-[#b5a898]/20' : 'border-stone-200'}`}>
+            {editingId === acc.id ? (
+              <div className="space-y-3">
+                <input autoFocus className="w-full bg-stone-50 border-none outline-none font-bold text-stone-800 py-2 px-3 rounded-lg text-sm" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                <input type="number" className="w-full bg-emerald-50 border-none outline-none font-black text-emerald-700 py-2 px-3 rounded-lg text-sm" value={editBalance} onChange={(e) => setEditBalance(e.target.value)} />
+                <button onClick={() => handleSave(acc.id)} className="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest">Guardar</button>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-start mb-2"><span className="font-bold text-stone-800 text-sm truncate pr-2">{acc.name}</span><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button onClick={() => { setEditingId(acc.id); setEditName(acc.name); setEditBalance(acc.initialBalance); }} className="p-1.5 text-stone-400 hover:text-[#b5a898] hover:bg-stone-50 rounded-lg"><Pencil className="w-3.5 h-3.5" /></button><button onClick={() => setAccounts(accounts.filter(i => i.id !== acc.id))} className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button></div></div>
+                <div className="bg-stone-50 px-3 py-2 rounded-lg border border-stone-100"><span className="text-[9px] font-bold text-stone-400 uppercase block mb-0.5">Saldo Inicial</span><span className="font-black text-emerald-600">{formatCurrency(acc.initialBalance)}</span></div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VariableManager({ title, list, setList, icon: Icon, placeholder }) {
+  const [newItem, setNewItem] = useState('');
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const addItem = (e) => { e.preventDefault(); if (newItem.trim() && !list.includes(newItem)) { setList([...list, newItem.trim()]); setNewItem(''); } };
+  const startEdit = (index, value) => { setEditingIndex(index); setEditValue(value); };
+  const saveEdit = (index) => { if (editValue.trim()) { const newList = [...list]; newList[index] = editValue.trim(); setList(newList); setEditingIndex(null); } };
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 uppercase">
+      <div className="flex items-center gap-3 mb-8 text-stone-900"><div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><Icon className="w-6 h-6" /></div><h3 className="text-xl font-black">{title}</h3></div>
+      <form onSubmit={addItem} className="flex gap-3 mb-8"><input type="text" placeholder={placeholder} className="flex-1 bg-white border border-stone-200 rounded-xl px-4 py-3 font-bold text-stone-800 text-sm outline-none" value={newItem} onChange={(e) => setNewItem(e.target.value)} /><button type="submit" className="bg-black text-white px-6 rounded-xl font-bold uppercase text-[10px] tracking-widest">Agregar</button></form>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {list.map((item, index) => (
+          <div key={index} className={`bg-white border p-4 rounded-xl flex justify-between items-center group shadow-sm transition ${editingIndex === index ? 'border-[#b5a898] ring-2 ring-[#b5a898]/20' : 'border-stone-200'}`}>
+            {editingIndex === index ? (
+              <div className="flex-1 flex gap-2"><input autoFocus className="flex-1 bg-stone-50 border-none outline-none font-bold text-stone-800 py-1 px-3 rounded-lg text-sm" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveEdit(index)} /><button onClick={() => saveEdit(index)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check className="w-4 h-4" /></button></div>
+            ) : (
+              <><span className="font-bold text-stone-800 text-sm">{item}</span><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button onClick={() => startEdit(index, item)} className="p-2 text-stone-400 hover:text-[#b5a898] hover:bg-stone-50 rounded-lg"><Pencil className="w-3.5 h-3.5" /></button><button onClick={() => setList(list.filter(i => i !== item))} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button></div></>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PaymentMethodManager({ paymentMethods, setPaymentMethods, accounts }) {
+  const [newName, setNewName] = useState('');
+  const [newAccount, setNewAccount] = useState('');
+  const [editingName, setEditingName] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editAccount, setEditAccount] = useState('');
+
+  const addItem = (e) => { e.preventDefault(); if (newName.trim() && newAccount && !paymentMethods.find(p => p.name === newName.trim())) { setPaymentMethods([...paymentMethods, { name: newName.trim(), account: newAccount }]); setNewName(''); setNewAccount(''); } };
+  
+  const saveEdit = (oldName) => {
+    if (editName.trim() && editAccount) {
+      setPaymentMethods(paymentMethods.map(p => p.name === oldName ? { name: editName.trim(), account: editAccount } : p));
+      setEditingName(null);
+    }
+  };
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 uppercase">
+      <div className="flex items-center gap-3 mb-8 text-stone-900"><div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><CreditCard className="w-6 h-6" /></div><h3 className="text-xl font-black">Formas de Pago</h3></div>
+      <form onSubmit={addItem} className="flex flex-wrap gap-3 mb-8">
+        <input type="text" placeholder="Ej: Tarjeta de Débito" className="flex-1 min-w-[200px] bg-white border border-stone-200 rounded-xl px-4 py-3 font-bold text-stone-800 text-sm outline-none" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <select className="flex-1 min-w-[200px] bg-white border border-stone-200 rounded-xl px-4 py-3 font-bold text-stone-800 text-sm outline-none" value={newAccount} onChange={(e) => setNewAccount(e.target.value)}><option value="">Vincular a Cuenta...</option>{accounts.map(acc => <option key={acc.id} value={acc.name}>{acc.name}</option>)}</select>
+        <button type="submit" className="bg-black text-white px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest">Enlazar</button>
+      </form>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {paymentMethods.map((item, idx) => (
+          <div key={idx} className={`bg-white border p-4 rounded-xl flex flex-col justify-between group shadow-sm transition ${editingName === item.name ? 'border-[#b5a898] ring-2 ring-[#b5a898]/20' : 'border-stone-200'}`}>
+            {editingName === item.name ? (
+              <div className="space-y-3">
+                <input autoFocus className="w-full bg-stone-50 border-none outline-none font-bold text-stone-800 py-2 px-3 rounded-lg text-sm" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                <select className="w-full bg-stone-50 border-none outline-none font-bold text-stone-800 py-2 px-3 rounded-lg text-sm" value={editAccount} onChange={(e) => setEditAccount(e.target.value)}>{accounts.map(acc => <option key={acc.id} value={acc.name}>{acc.name}</option>)}</select>
+                <div className="flex gap-2">
+                   <button onClick={() => saveEdit(item.name)} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest">Guardar</button>
+                   <button onClick={() => setEditingName(null)} className="flex-1 bg-stone-200 text-stone-600 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest">Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-start mb-2">
+                  <span className="font-bold text-stone-800 text-sm block">{item.name}</span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                    <button onClick={() => { setEditingName(item.name); setEditName(item.name); setEditAccount(item.account); }} className="p-1.5 text-stone-400 hover:text-[#b5a898] hover:bg-stone-50 rounded-lg"><Pencil className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setPaymentMethods(paymentMethods.filter(i => i.name !== item.name))} className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+                <div className="bg-stone-50 px-3 py-2 rounded-lg border border-stone-100"><span className="text-[9px] font-bold text-stone-400 uppercase block mb-0.5">⮑ {item.account}</span></div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BonusManager({ paymentBonuses, setPaymentBonuses, paymentMethods }) {
+  const [newBonus, setNewBonus] = useState({ method: '', value: '' });
+  const [editingId, setEditingId] = useState(null);
+  const [editMethod, setEditMethod] = useState('');
+  const [editValue, setEditValue] = useState('');
+
+  const saveEdit = (id) => {
+    if (editMethod && editValue) {
+      setPaymentBonuses(paymentBonuses.map(b => b.id === id ? { ...b, method: editMethod, value: parseFloat(editValue) } : b));
+      setEditingId(null);
+    }
+  };
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 uppercase">
+      <div className="flex items-center gap-3 mb-8"><div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><Gift className="w-6 h-6" /></div><h3 className="text-xl font-black text-stone-900">Bonificaciones Comerciales</h3></div>
+      <div className="flex flex-wrap gap-4 items-end mb-8 bg-white p-6 rounded-[1.5rem] border border-stone-200 shadow-sm">
+        <div className="flex-1 min-w-[200px] space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest ml-1">Medio Pago</label><select className="w-full bg-stone-50 border border-stone-200 rounded-lg px-4 py-3 font-bold text-sm outline-none" value={newBonus.method} onChange={(e)=>setNewBonus({...newBonus, method: e.target.value})}><option value="">Seleccione...</option>{paymentMethods.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}</select></div>
+        <div className="w-32 space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest ml-1">Valor (%)</label><div className="relative"><input type="number" className="w-full bg-stone-50 border border-stone-200 rounded-lg px-4 py-3 font-black text-sm pr-8 outline-none" value={String(newBonus.value)} onChange={(e)=>setNewBonus({...newBonus, value: e.target.value})} /><Percent className="absolute right-3 top-3.5 w-3.5 h-3.5 text-stone-400"/></div></div>
+        <button onClick={() => { if(newBonus.method && newBonus.value) { setPaymentBonuses([...paymentBonuses.filter(x=>x.method!==newBonus.method), { ...newBonus, id: Date.now(), value: parseFloat(newBonus.value) }]); setNewBonus({ method: '', value: '' }); } }} className="bg-black text-white px-8 py-3 rounded-lg font-bold uppercase text-[10px] tracking-widest">Configurar</button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {paymentBonuses.map(b => (
+          <div key={b.id} className={`bg-stone-50 border p-5 rounded-xl flex flex-col justify-between group shadow-sm transition ${editingId === b.id ? 'border-[#b5a898] ring-2 ring-[#b5a898]/20' : 'border-stone-200'}`}>
+            {editingId === b.id ? (
+              <div className="space-y-3">
+                <select className="w-full bg-white border border-stone-200 outline-none font-bold text-stone-800 py-2 px-3 rounded-lg text-sm" value={editMethod} onChange={(e) => setEditMethod(e.target.value)}>{paymentMethods.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}</select>
+                <div className="relative"><input type="number" className="w-full bg-white border border-stone-200 outline-none font-black text-stone-800 py-2 px-3 rounded-lg text-sm pr-8" value={editValue} onChange={(e) => setEditValue(e.target.value)} /><Percent className="absolute right-2 top-2.5 w-3.5 h-3.5 text-stone-400"/></div>
+                <div className="flex gap-2">
+                   <button onClick={() => saveEdit(b.id)} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest">Guardar</button>
+                   <button onClick={() => setEditingId(null)} className="flex-1 bg-stone-200 text-stone-600 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest">Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center w-full">
+                <div><p className="text-[9px] font-black text-stone-500 uppercase tracking-widest mb-0.5">{b.method}</p><p className="text-xl font-black text-[#8c8173]">{b.value}% OFF</p></div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <button onClick={() => { setEditingId(b.id); setEditMethod(b.method); setEditValue(b.value); }} className="p-1.5 text-stone-400 hover:text-[#b5a898] hover:bg-white rounded-lg"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => setPaymentBonuses(paymentBonuses.filter(x => x.id !== b.id))} className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-white rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AdvanceManager({ categories, loanAdvances, setLoanAdvances, paymentMethods }) {
   const getAdvance = (cat) => loanAdvances.find(x => x.category === cat) || { advancePercent: 10, defaultMethod: 'Efectivo' };
-  
   const updateAdvance = (cat, field, val) => {
     const existing = loanAdvances.find(x => x.category === cat);
     if (existing) {
@@ -2295,7 +3194,7 @@ function AdvanceManager({ categories, loanAdvances, setLoanAdvances, paymentMeth
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-bold text-stone-500 uppercase">Medio Pago</span>
                 <select className="bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-xs font-bold outline-none text-stone-700 max-w-[130px]" value={adv.defaultMethod} onChange={(e) => updateAdvance(cat, 'defaultMethod', e.target.value)}>
-                   <option value="">Ninguno</option>
+                  <option value="">Ninguno</option>
                   {paymentMethods.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
                 </select>
               </div>
@@ -2307,94 +3206,459 @@ function AdvanceManager({ categories, loanAdvances, setLoanAdvances, paymentMeth
   );
 }
 
-// --- APP ROOT (CONEXIÓN FIREBASE FINAL) ---
-
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [quoteToConvert, setQuoteToConvert] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+function TaxManager({ taxRules, setTaxRules, categories, paymentMethods, taxConcepts, setTaxConcepts }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [newRule, setNewRule] = useState({ category: '', paymentMethod: '', concepts: [] });
+  const [newConcept, setNewConcept] = useState({ name: '', value: '', base: 'Precio Lista c/IVA' });
+  const [isCreatingConcept, setIsCreatingConcept] = useState(false);
+  const [customConcept, setCustomConcept] = useState('');
   
-  const [products, setProductsLocal] = useState([]);
-  const [sales, setSalesLocal] = useState([]);
-  const [loans, setLoansLocal] = useState([]);
-  const [quotes, setQuotesLocal] = useState([]); 
-  const [purchases, setPurchasesLocal] = useState([]); 
-  const [transfers, setTransfersLocal] = useState([]);
-  
-  const [categories, setCategoriesLocal] = useState(INITIAL_CATEGORIES);
-  const [categoryMargins, setCategoryMarginsLocal] = useState(INITIAL_CATEGORY_MARGINS);
-  const [expenseCategories, setExpenseCategoriesLocal] = useState(INITIAL_PURCHASE_CATEGORIES);
-  const [accounts, setAccountsLocal] = useState(INITIAL_ACCOUNTS);
-  const [paymentMethods, setPaymentMethodsLocal] = useState(INITIAL_PAYMENTS);
-  const [taxRules, setTaxRulesLocal] = useState(INITIAL_TAX_RULES);
-  const [paymentBonuses, setPaymentBonusesLocal] = useState(INITIAL_PAYMENT_BONUSES);
-  const [loanAdvances, setLoanAdvancesLocal] = useState(INITIAL_LOAN_ADVANCES);
-  const [taxConcepts, setTaxConceptsLocal] = useState(INITIAL_TAX_CONCEPTS);
-
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsubscribeAuth();
-  }, []);
-
-  useEffect(() => {
-    if (!user) return; 
-    const unsubscribeData = onSnapshot(doc(db, "sistema", "datosGenerales"), (documento) => {
-      if (documento.exists()) {
-        const data = documento.data();
-        if (data.productos) setProductsLocal(data.productos);
-        if (data.ventas) setSalesLocal(data.ventas);
-        if (data.prestamos) setLoansLocal(data.prestamos);
-        if (data.presupuestos) setQuotesLocal(data.presupuestos);
-        if (data.gastos) setPurchasesLocal(data.gastos);
-        if (data.transferencias) setTransfersLocal(data.transferencias);
-        if (data.categories) setCategoriesLocal(data.categories);
-        if (data.categoryMargins) setCategoryMarginsLocal(data.categoryMargins);
-        if (data.expenseCategories) setExpenseCategoriesLocal(data.expenseCategories);
-        if (data.accounts) setAccountsLocal(data.accounts);
-        if (data.paymentMethods) setPaymentMethodsLocal(data.paymentMethods);
-        if (data.taxRules) setTaxRulesLocal(data.taxRules);
-        if (data.paymentBonuses) setPaymentBonusesLocal(data.paymentBonuses);
-        if (data.loanAdvances) setLoanAdvancesLocal(data.loanAdvances);
-        if (data.taxConcepts) setTaxConceptsLocal(data.taxConcepts);
+  const handleSaveRule = () => { 
+    if (newRule.category && newRule.paymentMethod && newRule.concepts.length > 0) { 
+      if (editingId) {
+        setTaxRules(taxRules.map(r => r.id === editingId ? { ...newRule, id: editingId } : r));
+      } else {
+        setTaxRules([...taxRules, { ...newRule, id: Date.now() }]); 
       }
-    });
-    return () => unsubscribeData();
-  }, [user]);
+      setNewRule({ category: '', paymentMethod: '', concepts: [] }); 
+      setEditingId(null);
+      setShowForm(false); 
+    } 
+  };
 
-  // Setters a la Nube (Firebase setDoc)
-  const setProducts = (n) => { setProductsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { productos: n }, { merge: true }); };
-  const setSales = (n) => { setSalesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { ventas: n }, { merge: true }); };
-  const setLoans = (n) => { setLoansLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { prestamos: n }, { merge: true }); };
-  const setQuotes = (n) => { setQuotesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { presupuestos: n }, { merge: true }); };
-  const setPurchases = (n) => { setPurchasesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { gastos: n }, { merge: true }); };
-  const setTransfers = (n) => { setTransfersLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { transferencias: n }, { merge: true }); };
-  const setCategories = (n) => { setCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categories: n }, { merge: true }); };
-  const setCategoryMargins = (n) => { setCategoryMarginsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categoryMargins: n }, { merge: true }); };
-  const setExpenseCategories = (n) => { setExpenseCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { expenseCategories: n }, { merge: true }); };
-  const setAccounts = (n) => { setAccountsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { accounts: n }, { merge: true }); };
-  const setPaymentMethods = (n) => { setPaymentMethodsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { paymentMethods: n }, { merge: true }); };
-  const setTaxRules = (n) => { setTaxRulesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { taxRules: n }, { merge: true }); };
-  const setPaymentBonuses = (n) => { setPaymentBonusesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { paymentBonuses: n }, { merge: true }); };
-  const setLoanAdvances = (n) => { setLoanAdvancesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { loanAdvances: n }, { merge: true }); };
-  const setTaxConcepts = (n) => { setTaxConceptsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { taxConcepts: n }, { merge: true }); };
+  const startEdit = (rule) => {
+    setEditingId(rule.id);
+    setNewRule(rule);
+    setShowForm(true);
+  };
+  
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 uppercase">
+      <div className="flex justify-between items-center mb-8"><div className="flex items-center gap-3"><div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><Coins className="w-6 h-6" /></div><h3 className="text-xl font-black text-stone-900">Reglas Financieras e Impuestos</h3></div>{!showForm && <button onClick={() => { setShowForm(true); setEditingId(null); setNewRule({ category: '', paymentMethod: '', concepts: [] }); }} className="bg-black text-white px-6 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Nueva Regla</button>}</div>
+      {showForm && (
+        <div className="bg-white border border-[#b5a898]/30 rounded-[2rem] p-8 mb-8 shadow-lg relative">
+          <h4 className="font-black text-[#b5a898] text-xs uppercase tracking-widest mb-6">{editingId ? 'Editando Regla' : 'Nueva Regla Financiera'}</h4>
+          <button onClick={() => { setShowForm(false); setEditingId(null); setNewRule({ category: '', paymentMethod: '', concepts: [] }); }} className="absolute top-8 right-8 text-stone-400 hover:text-stone-800 transition"><X className="w-5 h-5"/></button>
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-[#f4f2f0]">
-      <div className="font-black text-stone-400 uppercase tracking-widest flex flex-col items-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-stone-400" />
-        Cargando Sistema...
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Categoría</label><select className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={newRule.category} onChange={(e) => setNewRule({...newRule, category: e.target.value})}><option value="">Seleccione...</option><option value="Todas">Todas</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+            <div className="space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Medio Pago</label><select className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={newRule.paymentMethod} onChange={(e) => setNewRule({...newRule, paymentMethod: e.target.value})}><option value="">Seleccione...</option><option value="Todas">Todas</option>{paymentMethods.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}</select></div>
+          </div>
+          <div className="border-t border-stone-100 pt-6 mb-6">
+            <div className="flex flex-wrap gap-4 items-end mb-6 bg-stone-50 p-6 rounded-[1.5rem]">
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-bold text-stone-500 uppercase">Concepto P&L</label>
+                {isCreatingConcept ? (
+                   <div className="flex items-center gap-2"><input type="text" className="w-full bg-white border border-stone-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none" placeholder="Nombre..." value={customConcept} onChange={e => setCustomConcept(e.target.value)} autoFocus /><button onClick={() => { if (customConcept.trim()) { if (!taxConcepts.includes(customConcept.trim())) setTaxConcepts([...taxConcepts, customConcept.trim()]); setNewConcept({...newConcept, name: customConcept.trim()}); setCustomConcept(''); setIsCreatingConcept(false); } }} className="p-2.5 bg-black text-white rounded-lg"><Check className="w-4 h-4"/></button></div>
+                ) : (
+                   <select className="w-full bg-white border border-stone-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none" value={newConcept.name} onChange={(e) => e.target.value === '__NEW__' ? setIsCreatingConcept(true) : setNewConcept({...newConcept, name: e.target.value})}><option value="">Seleccionar...</option>{taxConcepts.map(opt => <option key={opt} value={opt}>{opt}</option>)}<option value="__NEW__" className="text-[#b5a898]">+ Nuevo...</option></select>
+                )}
+              </div>
+              <div className="w-48 space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Base Cálculo</label><select className="w-full bg-white border border-stone-200 rounded-lg px-4 py-2.5 text-sm font-bold outline-none" value={newConcept.base} onChange={(e) => setNewConcept({...newConcept, base: e.target.value})}><option value="Precio Lista c/IVA">Lista c/IVA (Total)</option><option value="Lista s/IVA (Neto)">Lista s/IVA (Neto)</option><option value="CMV (Costo Origen)">CMV (Costo Origen)</option></select></div>
+              <div className="w-24 space-y-1"><label className="text-[10px] font-bold text-stone-500 uppercase">Valor %</label><input type="number" className="w-full bg-white border border-stone-200 rounded-lg px-4 py-2.5 text-sm font-black outline-none text-rose-600" value={newConcept.value} onChange={(e) => setNewConcept({...newConcept, value: e.target.value})} /></div>
+              <button onClick={() => { if(newConcept.name && newConcept.value) { setNewRule({ ...newRule, concepts: [...newRule.concepts, { ...newConcept, value: parseFloat(newConcept.value) }] }); setNewConcept({ name: '', value: '', base: 'Precio Lista c/IVA' }); } }} className="bg-[#b5a898] text-white h-[42px] px-6 rounded-lg font-bold text-[10px] uppercase tracking-widest">Añadir</button>
+            </div>
+            <div className="space-y-3">{newRule.concepts.map((c, idx) => (
+              <div key={idx} className="flex justify-between items-center bg-white border border-stone-100 px-5 py-3 rounded-xl shadow-sm">
+                <span className="font-bold text-sm text-stone-800">{c.name} <span className="text-[9px] text-stone-400 block mt-0.5">Base: {c.base}</span></span>
+                <div className="flex items-center gap-4">
+                  <span className="font-black text-rose-600">{c.value}%</span>
+                  <button onClick={() => setNewRule({...newRule, concepts: newRule.concepts.filter((_, i) => i !== idx)})} className="text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            ))}</div>
+          </div>
+          <button onClick={handleSaveRule} className="w-full bg-black text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-md hover:bg-stone-800 transition">{editingId ? 'Guardar Cambios' : 'Guardar Regla'}</button>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-4">
+        {taxRules.map(rule => (
+          <div key={rule.id} className="bg-white border border-stone-200 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between shadow-sm group transition gap-4">
+            <div className="flex items-center gap-3"><span className="bg-black text-white px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest">{rule.category}</span><Plus className="w-3.5 h-3.5 text-stone-400" /><span className="bg-stone-100 text-[#8c8173] px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest">{rule.paymentMethod}</span></div>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-4 flex-wrap justify-end">
+                {rule.concepts.map((c,i)=>(<div key={i} className="text-right bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-100"><p className="text-[9px] font-bold text-stone-500">{c.name}</p><p className="font-black text-rose-500 text-sm">{c.value}%</p></div>))}
+              </div>
+              <div className="flex flex-col gap-1 ml-2 opacity-0 group-hover:opacity-100 transition">
+                 <button onClick={() => startEdit(rule)} className="p-2 text-stone-400 hover:text-[#b5a898] bg-stone-50 hover:bg-stone-100 rounded-lg transition"><Pencil className="w-3.5 h-3.5" /></button>
+                 <button onClick={() => setTaxRules(taxRules.filter(r => r.id !== rule.id))} className="p-2 text-stone-400 hover:text-red-500 bg-stone-50 hover:bg-red-50 rounded-lg transition"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
+}
+
+function LabelPrinterView({ products, categories, paymentBonuses }) {
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   
-  if (!user) return <Login />;
+  // Obtenemos el descuento de Efectivo configurado en el ERP (Si no existe, es 0)
+  const cashBonus = paymentBonuses?.find(b => b.method.toLowerCase().includes('efectivo'))?.value || 0;
+  
+  const [config, setConfig] = useState({
+    width: 50, height: 30, // mm (Dimensiones de 1 sola etiqueta)
+    columns: 1, gap: 2,    // Configuración de Bobina (Bandas y separación)
+    font: 'font-sans', align: 'text-center',
+    showName: true, nameSize: 11, nameBold: true,
+    showDimensions: true, dimensionsSize: 9, dimensionsBold: false,
+    showCustom: false, customText: 'OFERTA ESPECIAL', customSize: 9, customBold: true,
+    showListPrice: true, listPriceSize: 9, listPriceBold: false,
+    showCashPrice: true, cashPriceSize: 14, cashPriceBold: true,
+  });
+
+  const filteredSearch = useMemo(() => {
+    if (search.length < 2) return [];
+    return products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()));
+  }, [search, products]);
+
+  const addProduct = (prod) => {
+    if (!selectedItems.find(i => i.id === prod.id)) {
+      setSelectedItems([{ ...prod, printQty: 1 }, ...selectedItems]);
+    }
+    setSearch('');
+  };
+
+  const addCategory = () => {
+    if (!selectedCategory) return;
+    const catProds = products.filter(p => p.category === selectedCategory);
+    const newItems = catProds.filter(cp => !selectedItems.find(i => i.id === cp.id)).map(p => ({ ...p, printQty: 1 }));
+    setSelectedItems([...newItems, ...selectedItems]);
+    setSelectedCategory('');
+  };
+
+  const updateQty = (id, delta) => {
+    setSelectedItems(selectedItems.map(item => {
+      if (item.id === id) {
+        const currentQty = parseInt(item.printQty) || 0;
+        const newQty = Math.max(1, currentQty + delta);
+        return { ...item, printQty: newQty };
+      }
+      return item;
+    }));
+  };
+
+  const handleExactQty = (id, val) => {
+    setSelectedItems(selectedItems.map(item => {
+      if (item.id === id) {
+        return { ...item, printQty: val };
+      }
+      return item;
+    }));
+  };
+
+  const handlePrint = () => {
+    if (selectedItems.length === 0) {
+      alert("Añade al menos un producto para imprimir.");
+      return;
+    }
+    window.print();
+  };
+
+  const totalLabels = selectedItems.reduce((acc, item) => acc + (parseInt(item.printQty) || 0), 0);
+
+  const allLabelsToPrint = useMemo(() => {
+    const arr = [];
+    selectedItems.forEach(item => {
+      const qty = parseInt(item.printQty) || 0;
+      for(let i=0; i<qty; i++) arr.push(item);
+    });
+    return arr;
+  }, [selectedItems]);
+
+  const labelChunks = useMemo(() => {
+    const chunks = [];
+    const cols = parseInt(config.columns) || 1;
+    for (let i = 0; i < allLabelsToPrint.length; i += cols) {
+        chunks.push(allLabelsToPrint.slice(i, i + cols));
+    }
+    return chunks;
+  }, [allLabelsToPrint, config.columns]);
+
+  const colsNum = parseInt(config.columns) || 1;
+  const pageWidth = (parseFloat(config.width) * colsNum) + (parseFloat(config.gap) * (colsNum - 1));
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <style>{`
+        @media print {
+          /* Esconder elementos del ERP */
+          header, aside, .no-print { display: none !important; }
+          main, .flex-1 { overflow: visible !important; padding: 0 !important; background: white !important; }
+          body { background: white; }
+          @page { size: ${pageWidth}mm ${config.height}mm; margin: 0; }
+          #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+        }
+      `}</style>
+
+      <div className="flex items-center gap-3 mb-4 text-stone-900 no-print">
+        <div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><Printer className="w-6 h-6" /></div>
+        <h3 className="text-xl font-bold">Impresor de Etiquetas</h3>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 no-print">
+        
+        {/* PANEL IZQUIERDO: SELECCIÓN */}
+        <div className="xl:col-span-5 flex flex-col gap-6">
+          <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm">
+            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><CheckSquare className="w-4 h-4 text-[#b5a898]" /> 1. Elegir Productos</h4>
+            
+            <div className="space-y-4 mb-8">
+               <div className="space-y-1 relative">
+                 <label className="text-[10px] font-bold text-stone-500 uppercase">Buscar Artículo</label>
+                 <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-stone-400" />
+                    <input type="text" className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={search} onChange={e => setSearch(e.target.value)} placeholder="Ej: Sofá Florencia..." />
+                 </div>
+                 {filteredSearch.length > 0 && (
+                    <div className="absolute top-full left-0 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                       {filteredSearch.map(p => (
+                         <button key={p.id} onClick={() => addProduct(p)} className="w-full text-left p-3 hover:bg-stone-50 border-b border-stone-100 flex justify-between items-center">
+                           <span className="font-bold text-sm text-stone-800">{p.name}</span><span className="text-[10px] font-black text-emerald-600">{formatCurrency(p.price)}</span>
+                         </button>
+                       ))}
+                    </div>
+                 )}
+               </div>
+
+               <div className="flex gap-2 items-end border-t border-stone-100 pt-4">
+                 <div className="flex-1 space-y-1">
+                   <label className="text-[10px] font-bold text-stone-500 uppercase">Categoría Completa</label>
+                   <select className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 font-bold text-sm outline-none" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
+                     <option value="">Seleccionar...</option>{categories.map(c => <option key={c} value={c}>{c}</option>)}
+                   </select>
+                 </div>
+                 <button onClick={addCategory} className="bg-stone-800 text-white p-2.5 rounded-xl hover:bg-black transition"><PlusSquare className="w-5 h-5" /></button>
+               </div>
+            </div>
+
+            <div className="border border-stone-200 rounded-xl overflow-hidden bg-stone-50 h-[300px] flex flex-col">
+               <div className="bg-stone-100 p-3 border-b border-stone-200 flex justify-between items-center text-[10px] font-bold text-stone-500 uppercase tracking-widest shrink-0">
+                  <span>En Cola ({selectedItems.length})</span><span>Copias</span>
+               </div>
+               <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                  {selectedItems.map(item => (
+                    <div key={item.id} className="bg-white border border-stone-100 p-3 rounded-lg flex justify-between items-center shadow-sm">
+                       <div className="flex-1 truncate pr-2">
+                         <p className="text-xs font-bold text-stone-800 truncate">{item.name}</p>
+                         <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest">{item.dimensions}</p>
+                       </div>
+                       <div className="flex items-center gap-3 shrink-0">
+                         <div className="flex items-center bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
+                            <button onClick={() => updateQty(item.id, -1)} className="px-2.5 py-1 text-stone-500 hover:bg-stone-200 hover:text-black font-black transition">-</button>
+                            <input 
+                               type="number" 
+                               min="1"
+                               className="w-10 py-1 text-center text-xs font-black bg-transparent outline-none [&::-webkit-inner-spin-button]:appearance-none" 
+                               value={item.printQty} 
+                               onChange={(e) => handleExactQty(item.id, e.target.value)} 
+                               onBlur={(e) => { if (!e.target.value || parseInt(e.target.value) < 1) handleExactQty(item.id, 1); }}
+                            />
+                            <button onClick={() => updateQty(item.id, 1)} className="px-2.5 py-1 text-stone-500 hover:bg-stone-200 hover:text-black font-black transition">+</button>
+                         </div>
+                         <button onClick={() => setSelectedItems(selectedItems.filter(i => i.id !== item.id))} className="text-stone-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                       </div>
+                    </div>
+                  ))}
+                  {selectedItems.length === 0 && <div className="h-full flex items-center justify-center text-stone-400 text-xs font-bold uppercase tracking-widest">Cola Vacía</div>}
+               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PANEL DERECHO: DISEÑO Y PREVIEW */}
+        <div className="xl:col-span-7 flex flex-col gap-6">
+          <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm flex-1">
+            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><Type className="w-4 h-4 text-[#b5a898]" /> 2. Formato y Bobina</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+               <div className="space-y-4">
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                    <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3 border-b border-stone-200 pb-2">Tamaño de 1 Etiqueta</p>
+                    <div className="flex gap-4 mb-4">
+                      <div className="flex-1 space-y-1"><label className="text-[9px] font-bold text-stone-400 uppercase">Ancho (mm)</label><input type="number" className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm font-black outline-none" value={config.width} onChange={e => setConfig({...config, width: e.target.value})} /></div>
+                      <div className="flex-1 space-y-1"><label className="text-[9px] font-bold text-stone-400 uppercase">Alto (mm)</label><input type="number" className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm font-black outline-none" value={config.height} onChange={e => setConfig({...config, height: e.target.value})} /></div>
+                    </div>
+                    
+                    <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3 border-b border-stone-200 pb-2">Distribución de Bobina</p>
+                    <div className="flex gap-4">
+                      <div className="flex-1 space-y-1"><label className="text-[9px] font-bold text-stone-400 uppercase">Bandas (Col)</label><input type="number" min="1" className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm font-black outline-none text-[#b5a898]" value={config.columns} onChange={e => setConfig({...config, columns: e.target.value})} /></div>
+                      <div className="flex-1 space-y-1"><label className="text-[9px] font-bold text-stone-400 uppercase">Gap/Separación (mm)</label><input type="number" min="0" className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm font-black outline-none" value={config.gap} onChange={e => setConfig({...config, gap: e.target.value})} /></div>
+                    </div>
+                  </div>
+
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                    <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3 border-b border-stone-200 pb-2">Tipografía Base</p>
+                    <div className="flex gap-2">
+                       <select className="flex-1 bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs font-bold outline-none" value={config.font} onChange={e => setConfig({...config, font: e.target.value})}>
+                          <option value="font-sans">Sans-Serif (Moderna)</option>
+                          <option value="font-serif">Serif (Clásica)</option>
+                          <option value="font-mono">Monoespaciada</option>
+                       </select>
+                       <div className="flex bg-white border border-stone-200 rounded-lg overflow-hidden">
+                          <button onClick={() => setConfig({...config, align: 'text-left'})} className={`p-2 ${config.align === 'text-left' ? 'bg-stone-200 text-black' : 'text-stone-400'}`}><AlignLeft className="w-4 h-4"/></button>
+                          <button onClick={() => setConfig({...config, align: 'text-center'})} className={`p-2 ${config.align === 'text-center' ? 'bg-stone-200 text-black' : 'text-stone-400'}`}><AlignCenter className="w-4 h-4"/></button>
+                          <button onClick={() => setConfig({...config, align: 'text-right'})} className={`p-2 ${config.align === 'text-right' ? 'bg-stone-200 text-black' : 'text-stone-400'}`}><AlignRight className="w-4 h-4"/></button>
+                       </div>
+                    </div>
+                  </div>
+               </div>
+
+               <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-3">
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 border-b border-stone-200 pb-2">Contenido a Imprimir</p>
+                  
+                  {/* Config Name */}
+                  <div className="flex items-center justify-between gap-3">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-[#b5a898] w-4 h-4" checked={config.showName} onChange={e => setConfig({...config, showName: e.target.checked})} /><span className="text-xs font-bold">Nombre Prod.</span></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={config.nameSize} onChange={e => setConfig({...config, nameSize: e.target.value})} disabled={!config.showName} />
+                       <button onClick={() => setConfig({...config, nameBold: !config.nameBold})} className={`px-2 py-0.5 text-xs rounded-md border ${config.nameBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!config.showName}>B</button>
+                     </div>
+                  </div>
+
+                  {/* Config Dimensions */}
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-[#b5a898] w-4 h-4" checked={config.showDimensions} onChange={e => setConfig({...config, showDimensions: e.target.checked})} /><span className="text-xs font-bold">Medidas</span></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={config.dimensionsSize} onChange={e => setConfig({...config, dimensionsSize: e.target.value})} disabled={!config.showDimensions} />
+                       <button onClick={() => setConfig({...config, dimensionsBold: !config.dimensionsBold})} className={`px-2 py-0.5 text-xs rounded-md border ${config.dimensionsBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!config.showDimensions}>B</button>
+                     </div>
+                  </div>
+
+                  {/* Config Custom Text */}
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-[#b5a898] w-4 h-4" checked={config.showCustom} onChange={e => setConfig({...config, showCustom: e.target.checked})} /><input type="text" className="text-xs font-bold border rounded-md px-2 py-0.5 w-24" value={config.customText} onChange={e => setConfig({...config, customText: e.target.value})} disabled={!config.showCustom} placeholder="Texto..." /></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={config.customSize} onChange={e => setConfig({...config, customSize: e.target.value})} disabled={!config.showCustom} />
+                       <button onClick={() => setConfig({...config, customBold: !config.customBold})} className={`px-2 py-0.5 text-xs rounded-md border ${config.customBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!config.showCustom}>B</button>
+                     </div>
+                  </div>
+
+                  {/* Config List Price */}
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-[#b5a898] w-4 h-4" checked={config.showListPrice} onChange={e => setConfig({...config, showListPrice: e.target.checked})} /><span className="text-xs font-bold">Precio Lista</span></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={config.listPriceSize} onChange={e => setConfig({...config, listPriceSize: e.target.value})} disabled={!config.showListPrice} />
+                       <button onClick={() => setConfig({...config, listPriceBold: !config.listPriceBold})} className={`px-2 py-0.5 text-xs rounded-md border ${config.listPriceBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!config.showListPrice}>B</button>
+                     </div>
+                  </div>
+
+                  {/* Config Cash Price */}
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-emerald-600 w-4 h-4" checked={config.showCashPrice} onChange={e => setConfig({...config, showCashPrice: e.target.checked})} /><span className="text-xs font-bold text-emerald-700">Precio Efectivo (-{cashBonus}%)</span></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={config.cashPriceSize} onChange={e => setConfig({...config, cashPriceSize: e.target.value})} disabled={!config.showCashPrice} />
+                       <button onClick={() => setConfig({...config, cashPriceBold: !config.cashPriceBold})} className={`px-2 py-0.5 text-xs rounded-md border ${config.cashPriceBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!config.showCashPrice}>B</button>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            {/* VISTA PREVIA */}
+            <div className="mb-8 flex flex-col items-center justify-center p-8 bg-[#e8e6e1] rounded-[1.5rem] border-2 border-dashed border-stone-300 relative overflow-x-auto" style={{ backgroundImage: 'radial-gradient(#d6d3d1 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
+               <span className="absolute top-3 right-4 text-[9px] font-black text-stone-400 uppercase tracking-widest bg-white/50 px-2 py-1 rounded backdrop-blur-sm z-10">Vista Previa ({colsNum} Bandas)</span>
+               
+               {/* Simulación del Rollo con la cantidad de columnas especificadas */}
+               <div className="flex shrink-0" style={{ gap: `${config.gap}mm` }}>
+                 {Array.from({ length: colsNum }).map((_, idx) => (
+                   <div 
+                     key={idx}
+                     className={`bg-white shadow-xl flex flex-col justify-center box-border p-1 leading-tight ${config.align} ${config.font} text-black shrink-0`}
+                     style={{ width: `${config.width}mm`, height: `${config.height}mm` }}
+                   >
+                      {config.showName && <p style={{ fontSize: `${config.nameSize}px`, fontWeight: config.nameBold ? '900' : 'normal' }}>Sofá Múnich 3 Cuerpos</p>}
+                      {config.showDimensions && <p style={{ fontSize: `${config.dimensionsSize}px`, fontWeight: config.dimensionsBold ? '900' : 'normal', marginTop: '2px' }}>210x90x85 cm</p>}
+                      {config.showCustom && <p style={{ fontSize: `${config.customSize}px`, fontWeight: config.customBold ? '900' : 'normal', marginTop: '2px' }}>{config.customText}</p>}
+                      {config.showListPrice && <p style={{ fontSize: `${config.listPriceSize}px`, fontWeight: config.listPriceBold ? '900' : 'normal', marginTop: '4px' }}>Lista: $ 100.000,00</p>}
+                      {config.showCashPrice && <p style={{ fontSize: `${config.cashPriceSize}px`, fontWeight: config.cashPriceBold ? '900' : 'normal', marginTop: '2px' }}>Efectivo: $ {(100000 * (1 - (cashBonus / 100))).toLocaleString('es-AR')}</p>}
+                   </div>
+                 ))}
+               </div>
+            </div>
+
+            <button onClick={handlePrint} className="w-full bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] text-[11px] shadow-lg hover:bg-[#a39686] transition active:scale-95 flex items-center justify-center gap-3">
+               <Printer className="w-5 h-5" /> Imprimir {totalLabels} Etiquetas
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ÁREA DE IMPRESIÓN DINÁMICA: Agrupa en filas usando gap nativo y salto de página (row) */}
+      <div id="print-area" className="hidden print:block bg-white text-black">
+         {labelChunks.map((chunk, chunkIdx) => (
+            <div key={chunkIdx} className="flex" style={{ breakAfter: 'page', gap: `${config.gap}mm` }}>
+               {chunk.map((item, i) => (
+                  <div key={i} className={`box-border flex flex-col justify-center overflow-hidden p-1 leading-tight ${config.align} ${config.font}`} style={{ width: `${config.width}mm`, height: `${config.height}mm` }}>
+                     {config.showName && <p style={{ fontSize: `${config.nameSize}px`, fontWeight: config.nameBold ? '900' : 'normal' }}>{item.name}</p>}
+                     {config.showDimensions && <p style={{ fontSize: `${config.dimensionsSize}px`, fontWeight: config.dimensionsBold ? '900' : 'normal', marginTop: '2px' }}>{item.dimensions}</p>}
+                     {config.showCustom && <p style={{ fontSize: `${config.customSize}px`, fontWeight: config.customBold ? '900' : 'normal', marginTop: '2px' }}>{config.customText}</p>}
+                     {config.showListPrice && <p style={{ fontSize: `${config.listPriceSize}px`, fontWeight: config.listPriceBold ? '900' : 'normal', marginTop: '4px' }}>Lista: {formatCurrency(item.price)}</p>}
+                     {config.showCashPrice && <p style={{ fontSize: `${config.cashPriceSize}px`, fontWeight: config.cashPriceBold ? '900' : 'normal', marginTop: '2px' }}>Efectivo: {formatCurrency(item.price * (1 - (cashBonus / 100)))}</p>}
+                  </div>
+               ))}
+            </div>
+         ))}
+      </div>
+
+    </div>
+  );
+}
+
+function VariablesView({ categories, setCategories, expenseCategories, setExpenseCategories, paymentMethods, setPaymentMethods, taxRules, setTaxRules, paymentBonuses, setPaymentBonuses, categoryMargins, setCategoryMargins, taxConcepts, setTaxConcepts, accounts, setAccounts, loanAdvances, setLoanAdvances }) {
+  const [activeTab, setActiveTab] = useState('categories');
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div className="flex bg-white p-1.5 rounded-2xl border border-stone-200 shadow-sm w-fit overflow-x-auto custom-scrollbar">
+        <button onClick={() => setActiveTab('categories')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'categories' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Tags className="w-3.5 h-3.5" /> Categorías</button>
+        <button onClick={() => setActiveTab('margins')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'margins' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Percent className="w-3.5 h-3.5" /> Márgenes</button>
+        <button onClick={() => setActiveTab('accounts')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'accounts' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Landmark className="w-3.5 h-3.5" /> Cuentas/Cajas</button>
+        <button onClick={() => setActiveTab('payments')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'payments' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><CreditCard className="w-3.5 h-3.5" /> Medios Pago</button>
+        <button onClick={() => setActiveTab('bonuses')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'bonuses' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Gift className="w-3.5 h-3.5" /> Descuentos</button>
+        <button onClick={() => setActiveTab('advances')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'advances' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><BadgeDollarSign className="w-3.5 h-3.5" /> Anticipos Préstamo</button>
+        <button onClick={() => setActiveTab('taxes')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'taxes' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Coins className="w-3.5 h-3.5" /> Reglas P&L</button>
+        <button onClick={() => setActiveTab('expenses')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'expenses' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><ShoppingBag className="w-3.5 h-3.5" /> Cat. Egresos</button>
+      </div>
+      <div className="bg-[#f4f2f0] p-8 md:p-12 rounded-[3rem] border border-stone-200 shadow-inner min-h-[500px]">
+        {activeTab === 'categories' && <VariableManager title="Categorías de Inventario" list={categories} setList={setCategories} icon={Tags} placeholder="Ej: Escritorios..." />}
+        {activeTab === 'margins' && <MarginManager categories={categories} categoryMargins={categoryMargins} setCategoryMargins={setCategoryMargins} />}
+        {activeTab === 'accounts' && <AccountManager accounts={accounts} setAccounts={setAccounts} />}
+        {activeTab === 'payments' && <PaymentMethodManager paymentMethods={paymentMethods} setPaymentMethods={setPaymentMethods} accounts={accounts} />}
+        {activeTab === 'bonuses' && <BonusManager paymentBonuses={paymentBonuses} setPaymentBonuses={setPaymentBonuses} paymentMethods={paymentMethods} />}
+        {activeTab === 'advances' && <AdvanceManager categories={categories} loanAdvances={loanAdvances} setLoanAdvances={setLoanAdvances} paymentMethods={paymentMethods} />}
+        {activeTab === 'taxes' && <TaxManager taxRules={taxRules} setTaxRules={setTaxRules} categories={categories} paymentMethods={paymentMethods} taxConcepts={taxConcepts} setTaxConcepts={setTaxConcepts} />}
+        {activeTab === 'expenses' && <VariableManager title="Categorías de Egresos" list={expenseCategories} setList={setExpenseCategories} icon={ShoppingBag} placeholder="Ej: Servicios Generales..." />}
+      </div>
+    </div>
+  );
+}
+
+// --- APP ROOT ---
+
+export default function App() {
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [quoteToConvert, setQuoteToConvert] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [loans, setLoans] = useState([]); 
+  const [quotes, setQuotes] = useState([]); // NUEVO ESTADO PARA PRESUPUESTOS
+  const [purchases, setPurchases] = useState([]); 
+  const [transfers, setTransfers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
+  const [categoryMargins, setCategoryMargins] = useState(INITIAL_CATEGORY_MARGINS);
+  const [expenseCategories, setExpenseCategories] = useState(INITIAL_PURCHASE_CATEGORIES);
+  const [accounts, setAccounts] = useState(INITIAL_ACCOUNTS);
+  const [paymentMethods, setPaymentMethods] = useState(INITIAL_PAYMENTS);
+  const [taxRules, setTaxRules] = useState(INITIAL_TAX_RULES);
+  const [paymentBonuses, setPaymentBonuses] = useState(INITIAL_PAYMENT_BONUSES);
+  const [loanAdvances, setLoanAdvances] = useState(INITIAL_LOAN_ADVANCES);
+  const [taxConcepts, setTaxConcepts] = useState(INITIAL_TAX_CONCEPTS);
 
   const NavItem = ({ icon: Icon, label, id }) => (
     <button 
@@ -2429,23 +3693,6 @@ export default function App() {
             <NavItem icon={Printer} label="Etiquetas" id="labels" />
             <div className="pt-4 mt-4 border-t border-stone-800/50"><NavItem icon={Settings} label="Configuración" id="variables" /></div>
           </nav>
-
-          <div className="pt-6 border-t border-stone-800/50 shrink-0">
-            <div className="bg-black p-4 rounded-xl flex items-center gap-3 border border-stone-800">
-              <div className="w-10 h-10 rounded-full bg-stone-800 flex items-center justify-center font-black text-xs text-[#b5a898]">MH</div>
-              <div className="flex-1">
-                <p className="text-xs font-bold text-white truncate">{user.email}</p>
-                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-0.5">Activo</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => signOut(auth)} 
-              className="mt-3 w-full bg-rose-500/10 text-rose-500 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition"
-            >
-              Cerrar Sesión
-            </button>
-          </div>
-
         </div>
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden relative">
