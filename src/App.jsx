@@ -3636,29 +3636,94 @@ function VariablesView({ categories, setCategories, expenseCategories, setExpens
   );
 }
 
-// --- APP ROOT ---
+// --- APP ROOT (CONEXIÓN FIREBASE FINAL PARA V4) ---
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   const [currentView, setCurrentView] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [quoteToConvert, setQuoteToConvert] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [loans, setLoans] = useState([]); 
-  const [quotes, setQuotes] = useState([]); // NUEVO ESTADO PARA PRESUPUESTOS
-  const [purchases, setPurchases] = useState([]); 
-  const [transfers, setTransfers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
-  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
-  const [categoryMargins, setCategoryMargins] = useState(INITIAL_CATEGORY_MARGINS);
-  const [expenseCategories, setExpenseCategories] = useState(INITIAL_PURCHASE_CATEGORIES);
-  const [accounts, setAccounts] = useState(INITIAL_ACCOUNTS);
-  const [paymentMethods, setPaymentMethods] = useState(INITIAL_PAYMENTS);
-  const [taxRules, setTaxRules] = useState(INITIAL_TAX_RULES);
-  const [paymentBonuses, setPaymentBonuses] = useState(INITIAL_PAYMENT_BONUSES);
-  const [loanAdvances, setLoanAdvances] = useState(INITIAL_LOAN_ADVANCES);
-  const [taxConcepts, setTaxConcepts] = useState(INITIAL_TAX_CONCEPTS);
+  const [products, setProductsLocal] = useState([]);
+  const [sales, setSalesLocal] = useState([]);
+  const [loans, setLoansLocal] = useState([]);
+  const [quotes, setQuotesLocal] = useState([]); 
+  const [purchases, setPurchasesLocal] = useState([]); 
+  const [transfers, setTransfersLocal] = useState([]);
+  
+  const [categories, setCategoriesLocal] = useState(INITIAL_CATEGORIES);
+  const [categoryMargins, setCategoryMarginsLocal] = useState(INITIAL_CATEGORY_MARGINS);
+  const [expenseCategories, setExpenseCategoriesLocal] = useState(INITIAL_PURCHASE_CATEGORIES);
+  const [accounts, setAccountsLocal] = useState(INITIAL_ACCOUNTS);
+  const [paymentMethods, setPaymentMethodsLocal] = useState(INITIAL_PAYMENTS);
+  const [taxRules, setTaxRulesLocal] = useState(INITIAL_TAX_RULES);
+  const [paymentBonuses, setPaymentBonusesLocal] = useState(INITIAL_PAYMENT_BONUSES);
+  const [loanAdvances, setLoanAdvancesLocal] = useState(INITIAL_LOAN_ADVANCES);
+  const [taxConcepts, setTaxConceptsLocal] = useState(INITIAL_TAX_CONCEPTS);
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return; 
+    const unsubscribeData = onSnapshot(doc(db, "sistema", "datosGenerales"), (documento) => {
+      if (documento.exists()) {
+        const data = documento.data();
+        if (data.productos) setProductsLocal(data.productos);
+        if (data.ventas) setSalesLocal(data.ventas);
+        if (data.prestamos) setLoansLocal(data.prestamos);
+        if (data.presupuestos) setQuotesLocal(data.presupuestos);
+        if (data.gastos) setPurchasesLocal(data.gastos);
+        if (data.transferencias) setTransfersLocal(data.transferencias);
+        if (data.categories) setCategoriesLocal(data.categories);
+        if (data.categoryMargins) setCategoryMarginsLocal(data.categoryMargins);
+        if (data.expenseCategories) setExpenseCategoriesLocal(data.expenseCategories);
+        if (data.accounts) setAccountsLocal(data.accounts);
+        if (data.paymentMethods) setPaymentMethodsLocal(data.paymentMethods);
+        if (data.taxRules) setTaxRulesLocal(data.taxRules);
+        if (data.paymentBonuses) setPaymentBonusesLocal(data.paymentBonuses);
+        if (data.loanAdvances) setLoanAdvancesLocal(data.loanAdvances);
+        if (data.taxConcepts) setTaxConceptsLocal(data.taxConcepts);
+      }
+    });
+    return () => unsubscribeData();
+  }, [user]);
+
+  // Setters a la Nube (Firebase setDoc)
+  const setProducts = (n) => { setProductsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { productos: n }, { merge: true }); };
+  const setSales = (n) => { setSalesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { ventas: n }, { merge: true }); };
+  const setLoans = (n) => { setLoansLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { prestamos: n }, { merge: true }); };
+  const setQuotes = (n) => { setQuotesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { presupuestos: n }, { merge: true }); };
+  const setPurchases = (n) => { setPurchasesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { gastos: n }, { merge: true }); };
+  const setTransfers = (n) => { setTransfersLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { transferencias: n }, { merge: true }); };
+  const setCategories = (n) => { setCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categories: n }, { merge: true }); };
+  const setCategoryMargins = (n) => { setCategoryMarginsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categoryMargins: n }, { merge: true }); };
+  const setExpenseCategories = (n) => { setExpenseCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { expenseCategories: n }, { merge: true }); };
+  const setAccounts = (n) => { setAccountsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { accounts: n }, { merge: true }); };
+  const setPaymentMethods = (n) => { setPaymentMethodsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { paymentMethods: n }, { merge: true }); };
+  const setTaxRules = (n) => { setTaxRulesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { taxRules: n }, { merge: true }); };
+  const setPaymentBonuses = (n) => { setPaymentBonusesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { paymentBonuses: n }, { merge: true }); };
+  const setLoanAdvances = (n) => { setLoanAdvancesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { loanAdvances: n }, { merge: true }); };
+  const setTaxConcepts = (n) => { setTaxConceptsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { taxConcepts: n }, { merge: true }); };
+
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-[#f4f2f0]">
+      <div className="font-black text-stone-400 uppercase tracking-widest flex flex-col items-center gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-stone-400" />
+        Cargando Sistema...
+      </div>
+    </div>
+  );
+  
+  if (!user) return <Login />;
 
   const NavItem = ({ icon: Icon, label, id }) => (
     <button 
@@ -3693,6 +3758,23 @@ export default function App() {
             <NavItem icon={Printer} label="Etiquetas" id="labels" />
             <div className="pt-4 mt-4 border-t border-stone-800/50"><NavItem icon={Settings} label="Configuración" id="variables" /></div>
           </nav>
+
+          <div className="pt-6 border-t border-stone-800/50 shrink-0">
+            <div className="bg-black p-4 rounded-xl flex items-center gap-3 border border-stone-800">
+              <div className="w-10 h-10 rounded-full bg-stone-800 flex items-center justify-center font-black text-xs text-[#b5a898]">MH</div>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-white truncate">{user.email}</p>
+                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-0.5">Activo</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => signOut(auth)} 
+              className="mt-3 w-full bg-rose-500/10 text-rose-500 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
+
         </div>
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden relative">
