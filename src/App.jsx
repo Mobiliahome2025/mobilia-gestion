@@ -213,7 +213,7 @@ function QuotePrintModal({ quote, paymentBonuses, onClose }) {
           <button onClick={onClose} className="hover:text-[#b5a898] transition"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="p-8 overflow-y-auto flex-1 bg-stone-50 no-print">
+        <div className="p-8 overflow-y-auto flex-1 bg-stone-50">
            {/* Visual Preview */}
            <div id="quote-print-area" className="bg-white p-10 max-w-[800px] mx-auto border border-stone-200 shadow-sm min-h-[800px] relative">
               <div className="flex justify-between items-start border-b-2 border-stone-900 pb-8 mb-8">
