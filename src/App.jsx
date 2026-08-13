@@ -2737,7 +2737,6 @@ function InventoryView({ products, setProducts, categories, categoryMargins, sea
             {!isAdding && (
               <div className="flex gap-2 shrink-0">
                 <button onClick={handleExportCSV} className="bg-white border border-stone-200 text-stone-700 px-4 py-2.5 rounded-xl hover:bg-stone-50 transition shadow-sm flex items-center gap-2" title="Descargar Base / Plantilla"><Download className="w-4 h-4" /> Exportar</button>
-                <button onClick={() => { if(confirm('¿Eliminar inventario?')) setProducts([]); }} className="bg-white border border-rose-100 text-rose-500 px-4 py-2.5 rounded-xl hover:bg-rose-50 transition shadow-sm" title="Limpiar"><Trash2 className="w-4 h-4" /></button>
                 <button onClick={() => setIsMassLoading(true)} className="bg-white border border-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold uppercase text-[10px] hover:bg-stone-50 transition shadow-sm flex items-center gap-2"><UploadCloud className="w-4 h-4" /> Masivo</button>
                 <button onClick={() => setIsBulkCostUpdating(true)} className="bg-white border border-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold uppercase text-[10px] hover:bg-stone-50 transition shadow-sm flex items-center gap-2"><Percent className="w-4 h-4" /> Actualizar Costos</button>
                 <button onClick={() => { setEditingProduct(null); setIsAdding(true); }} className="bg-[#b5a898] text-white px-6 py-2.5 rounded-xl font-bold uppercase text-[10px] hover:bg-[#a39686] shadow-md transition flex items-center gap-2"><Plus className="w-4 h-4" /> Nuevo</button>
@@ -3898,7 +3897,7 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
           main, .flex-1 { overflow: visible !important; padding: 0 !important; background: white !important; }
           body { background: white; }
           @page { size: ${pageWidth}mm ${config.height}mm; margin: 0; }
-          #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+          #print-area { display: block !important; width: 100%; }
         }
       `}</style>
 
@@ -4097,7 +4096,7 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
       {/* ÁREA DE IMPRESIÓN DINÁMICA: Agrupa en filas usando gap nativo y salto de página (row) */}
       <div id="print-area" className="hidden print:block bg-white text-black">
          {labelChunks.map((chunk, chunkIdx) => (
-            <div key={chunkIdx} className="flex" style={{ breakAfter: 'page', gap: `${config.gap}mm` }}>
+            <div key={chunkIdx} className="flex" style={{ breakAfter: chunkIdx < labelChunks.length - 1 ? 'page' : 'auto', gap: `${config.gap}mm` }}>
                {chunk.map((item, i) => (
                   <div key={i} className={`box-border flex flex-col justify-center overflow-hidden p-1 leading-tight ${config.align} ${config.font}`} style={{ width: `${config.width}mm`, height: `${config.height}mm` }}>
                      {config.showName && <p style={{ fontSize: `${config.nameSize}px`, fontWeight: config.nameBold ? '900' : 'normal' }}>{item.name}</p>}
