@@ -2458,10 +2458,174 @@ function InventoryReportsView({ products, sales }) {
   );
 }
 
+function BulkCostUpdateModal({ products, categories, onApply, onClose }) {
+  const [mode, setMode] = useState('category'); // 'category' | 'supplier' | 'product'
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [pct, setPct] = useState('');
+
+  const suppliers = useMemo(() => {
+    return [...new Set(products.map(p => p.supplier).filter(Boolean))].sort();
+  }, [products]);
+
+  const searchResults = useMemo(() => {
+    if (!productSearch) return [];
+    return products.filter(p => !selectedProductIds.includes(p.id) && String(p.name).toLowerCase().includes(productSearch.toLowerCase())).slice(0, 8);
+  }, [productSearch, products, selectedProductIds]);
+
+  const addProduct = (p) => { setSelectedProductIds([...selectedProductIds, p.id]); setProductSearch(''); setShowResults(false); };
+  const removeProduct = (id) => setSelectedProductIds(selectedProductIds.filter(pid => pid !== id));
+
+  const affectedProducts = useMemo(() => {
+    if (mode === 'category') return selectedCategory ? products.filter(p => p.category === selectedCategory) : [];
+    if (mode === 'supplier') return selectedSupplier ? products.filter(p => p.supplier === selectedSupplier) : [];
+    return products.filter(p => selectedProductIds.includes(p.id));
+  }, [mode, selectedCategory, selectedSupplier, selectedProductIds, products]);
+
+  const pctNum = parseFloat(pct) || 0;
+
+  const preview = useMemo(() => {
+    return affectedProducts.map(p => {
+      const newCost = (p.cost || 0) * (1 + pctNum / 100);
+      const newPrice = Math.round(newCost * (1 + (p.iva || 0) / 100) * (1 + (p.margin || 0) / 100));
+      return { ...p, newCost, newPrice };
+    });
+  }, [affectedProducts, pctNum]);
+
+  const canApply = preview.length > 0 && pct !== '' && pctNum !== 0;
+
+  const handleApply = () => {
+    onApply(preview.map(p => ({ id: p.id, newCost: p.newCost, newPrice: p.newPrice })));
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2rem] w-full max-w-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+        <div className="bg-black p-6 flex justify-between items-center text-white shrink-0">
+          <h3 className="font-bold uppercase tracking-widest text-xs flex items-center gap-2"><Percent className="w-5 h-5 text-[#b5a898]" /> Actualización Masiva de Costos</h3>
+          <button onClick={onClose} className="hover:text-[#b5a898] transition"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-8 overflow-y-auto flex-1 space-y-6">
+          <div>
+            <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Aplicar por</label>
+            <div className="flex bg-stone-100 p-1.5 rounded-2xl w-fit">
+              <button onClick={() => { setMode('category'); }} className={`px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition ${mode === 'category' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-200'}`}>Categoría</button>
+              <button onClick={() => { setMode('supplier'); }} className={`px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition ${mode === 'supplier' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-200'}`}>Proveedor</button>
+              <button onClick={() => { setMode('product'); }} className={`px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition ${mode === 'product' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-200'}`}>Producto</button>
+            </div>
+          </div>
+
+          {mode === 'category' && (
+            <div className="space-y-1 max-w-sm">
+              <label className="text-[10px] font-bold text-stone-400 uppercase ml-1">Categoría</label>
+              <select className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
+                <option value="">Seleccionar...</option>
+                {categories.map(c => <option key={String(c)} value={String(c)}>{String(c)}</option>)}
+              </select>
+            </div>
+          )}
+
+          {mode === 'supplier' && (
+            <div className="space-y-1 max-w-sm">
+              <label className="text-[10px] font-bold text-stone-400 uppercase ml-1">Proveedor</label>
+              <select className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={selectedSupplier} onChange={e => setSelectedSupplier(e.target.value)}>
+                <option value="">Seleccionar...</option>
+                {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
+
+          {mode === 'product' && (
+            <div className="space-y-3 max-w-sm">
+              <div className="relative">
+                <label className="text-[10px] font-bold text-stone-400 uppercase ml-1">Buscar Producto</label>
+                <input type="text" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" placeholder="Buscar..." value={productSearch} onChange={e => { setProductSearch(e.target.value); setShowResults(true); }} />
+                {showResults && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                    {searchResults.map(p => (
+                      <button key={p.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => addProduct(p)} className="w-full text-left p-3 hover:bg-stone-50 border-b border-stone-100 flex justify-between items-center transition">
+                        <span className="font-bold text-sm text-stone-800">{String(p.name)}</span>
+                        <span className="text-[10px] font-black text-stone-400 uppercase">{p.category}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedProductIds.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {affectedProducts.map(p => (
+                    <span key={p.id} className="flex items-center gap-2 bg-stone-100 border border-stone-200 rounded-lg px-3 py-1.5 text-xs font-bold text-stone-700">
+                      {p.name}
+                      <button onClick={() => removeProduct(p.id)} className="text-stone-400 hover:text-red-500 transition"><X className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-1 max-w-xs">
+            <label className="text-[10px] font-bold text-[#b5a898] uppercase ml-1">Ajuste de Costo %</label>
+            <input type="number" className="w-full bg-white border border-[#b5a898] rounded-xl px-4 py-3 font-black text-[#8c8173] outline-none focus:ring-2 focus:ring-[#b5a898]" placeholder="Ej: 15 (aumenta 15%) o -10 (baja 10%)" value={pct} onChange={e => setPct(e.target.value)} />
+            <p className="text-[9px] text-stone-400 font-bold uppercase ml-1">El precio final se recalcula solo con el nuevo costo y el margen ya asignado a cada producto.</p>
+          </div>
+
+          <div className="border-t border-stone-100 pt-6">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-stone-500 mb-4">
+              {preview.length > 0 ? `Vista Previa (${preview.length} producto${preview.length === 1 ? '' : 's'} afectado${preview.length === 1 ? '' : 's'})` : 'Vista Previa'}
+            </h4>
+            {preview.length === 0 ? (
+              <p className="text-xs text-stone-400 font-bold uppercase text-center py-8">Elegí un filtro para ver los productos afectados.</p>
+            ) : (
+              <div className="overflow-x-auto max-h-64 overflow-y-auto border border-stone-100 rounded-xl">
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 bg-stone-50">
+                    <tr className="text-[9px] text-stone-400 uppercase tracking-widest border-b border-stone-200">
+                      <th className="py-2 px-4">Producto</th>
+                      <th className="py-2 px-4 text-right">Costo Actual</th>
+                      <th className="py-2 px-4 text-right">Costo Nuevo</th>
+                      <th className="py-2 px-4 text-right">Precio Actual</th>
+                      <th className="py-2 px-4 text-right">Precio Nuevo</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {preview.map(p => (
+                      <tr key={p.id}>
+                        <td className="py-2 px-4 font-bold text-xs text-stone-800">{p.name}</td>
+                        <td className="py-2 px-4 text-right text-xs font-bold text-stone-500">{formatCurrency(p.cost)}</td>
+                        <td className="py-2 px-4 text-right text-xs font-black text-stone-800">{formatCurrency(p.newCost)}</td>
+                        <td className="py-2 px-4 text-right text-xs font-bold text-stone-500">{formatCurrency(p.price)}</td>
+                        <td className="py-2 px-4 text-right text-xs font-black text-[#8c8173]">{formatCurrency(p.newPrice)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-6 border-t border-stone-200 shrink-0 flex gap-4 justify-end">
+          <button onClick={onClose} className="px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] text-stone-500 hover:bg-stone-100 transition">Cancelar</button>
+          <button onClick={handleApply} disabled={!canApply} className="bg-[#b5a898] text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-md hover:bg-[#a39686] transition disabled:opacity-30 disabled:cursor-not-allowed">
+            Aplicar a {preview.length} producto{preview.length === 1 ? '' : 's'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InventoryView({ products, setProducts, categories, categoryMargins, searchTerm, sales }) {
   const [activeTab, setActiveTab] = useState('catalogo'); // 'catalogo' | 'reportes'
   const [isAdding, setIsAdding] = useState(false);
   const [isMassLoading, setIsMassLoading] = useState(false);
+  const [isBulkCostUpdating, setIsBulkCostUpdating] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [editingProduct, setEditingProduct] = useState(null);
 
@@ -2528,13 +2692,27 @@ function InventoryView({ products, setProducts, categories, categoryMargins, sea
                 <button onClick={handleExportCSV} className="bg-white border border-stone-200 text-stone-700 px-4 py-2.5 rounded-xl hover:bg-stone-50 transition shadow-sm flex items-center gap-2" title="Descargar Base / Plantilla"><Download className="w-4 h-4" /> Exportar</button>
                 <button onClick={() => { if(confirm('¿Eliminar inventario?')) setProducts([]); }} className="bg-white border border-rose-100 text-rose-500 px-4 py-2.5 rounded-xl hover:bg-rose-50 transition shadow-sm" title="Limpiar"><Trash2 className="w-4 h-4" /></button>
                 <button onClick={() => setIsMassLoading(true)} className="bg-white border border-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold uppercase text-[10px] hover:bg-stone-50 transition shadow-sm flex items-center gap-2"><UploadCloud className="w-4 h-4" /> Masivo</button>
+                <button onClick={() => setIsBulkCostUpdating(true)} className="bg-white border border-stone-200 text-stone-700 px-5 py-2.5 rounded-xl font-bold uppercase text-[10px] hover:bg-stone-50 transition shadow-sm flex items-center gap-2"><Percent className="w-4 h-4" /> Actualizar Costos</button>
                 <button onClick={() => { setEditingProduct(null); setIsAdding(true); }} className="bg-[#b5a898] text-white px-6 py-2.5 rounded-xl font-bold uppercase text-[10px] hover:bg-[#a39686] shadow-md transition flex items-center gap-2"><Plus className="w-4 h-4" /> Nuevo</button>
               </div>
             )}
           </div>
 
           {isMassLoading && <MassUploadModal categoryMargins={categoryMargins} onUpload={(newProds) => setProducts([...newProds, ...products])} onClose={() => setIsMassLoading(false)} />}
-          
+          {isBulkCostUpdating && (
+            <BulkCostUpdateModal
+              products={products}
+              categories={categories}
+              onClose={() => setIsBulkCostUpdating(false)}
+              onApply={(updates) => {
+                setProducts(products.map(p => {
+                  const upd = updates.find(u => u.id === p.id);
+                  return upd ? { ...p, cost: upd.newCost, price: upd.newPrice } : p;
+                }));
+              }}
+            />
+          )}
+
           {isAdding ? (
             <ProductForm categories={categories} categoryMargins={categoryMargins} editingProduct={editingProduct} onClose={() => { setIsAdding(false); setEditingProduct(null); }} onSave={(prod) => {
                 if (editingProduct) setProducts(products.map(p => p.id === prod.id ? prod : p));
