@@ -1662,6 +1662,15 @@ function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm, produc
   );
 }
 
+const BASE_OPTIONS = ['Precio Lista c/IVA', 'Lista s/IVA (Neto)', 'CMV (Costo Origen)'];
+
+function computeCostItemAmount(item, { price, iva, cost }) {
+  let baseAmount = price;
+  if (item.base === 'CMV (Costo Origen)') baseAmount = cost;
+  else if (item.base === 'Lista s/IVA (Neto)') baseAmount = price / (1 + (iva / 100));
+  return baseAmount * ((parseFloat(item.value) || 0) / 100);
+}
+
 function RentabilidadCalculator({ products, paymentMethods, paymentBonuses, taxRules }) {
   const [productSearch, setProductSearch] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -1670,6 +1679,7 @@ function RentabilidadCalculator({ products, paymentMethods, paymentBonuses, taxR
   const [iva, setIva] = useState(21);
   const [margin, setMargin] = useState(50);
   const [scenarios, setScenarios] = useState([]);
+  const [expandedIds, setExpandedIds] = useState({});
 
   const filteredProducts = useMemo(() => {
     if (!productSearch) return [];
@@ -1680,8 +1690,10 @@ function RentabilidadCalculator({ products, paymentMethods, paymentBonuses, taxR
     return paymentMethods.map(pm => {
       const bonus = paymentBonuses.find(b => b.method === pm.name)?.value || 0;
       const matchingRules = taxRules.filter(r => (r.category === product.category || r.category === 'Todas') && (r.paymentMethod === pm.name || r.paymentMethod === 'Todas'));
-      const costPct = matchingRules.reduce((acc, r) => acc + r.concepts.reduce((a, c) => a + (parseFloat(c.value) || 0), 0), 0);
-      return { id: `sys-${pm.name}`, name: pm.name, bonus, costPct, isCustom: false };
+      const costItems = matchingRules.flatMap((r, ri) => r.concepts.map((c, ci) => ({
+        id: `rule-${r.id}-${ri}-${ci}`, name: c.name, base: c.base || 'Precio Lista c/IVA', value: c.value
+      })));
+      return { id: `sys-${pm.name}`, name: pm.name, bonus, costItems, isCustom: false };
     });
   };
 
@@ -1693,6 +1705,7 @@ function RentabilidadCalculator({ products, paymentMethods, paymentBonuses, taxR
     setIva(p.iva ?? 21);
     setMargin(p.margin ?? 50);
     setScenarios(buildScenariosForProduct(p));
+    setExpandedIds({});
   };
 
   const price = useMemo(() => {
@@ -1707,15 +1720,17 @@ function RentabilidadCalculator({ products, paymentMethods, paymentBonuses, taxR
   const results = useMemo(() => {
     return scenarios.map(s => {
       const bonus = parseFloat(s.bonus) || 0;
-      const costPct = parseFloat(s.costPct) || 0;
-      const precioVenta = price * (1 - bonus / 100);
-      const costosAsociados = price * (costPct / 100);
+      const descuento = price * (bonus / 100);
+      const precioVenta = price - descuento;
+      const itemAmounts = (s.costItems || []).map(item => ({ ...item, amount: computeCostItemAmount(item, { price, iva: parseFloat(iva) || 0, cost: parseFloat(cost) || 0 }) }));
+      const costosAsociados = itemAmounts.reduce((acc, item) => acc + item.amount, 0);
+      const costosAsociadosPct = price > 0 ? (costosAsociados / price) * 100 : 0;
       const netoRecibido = precioVenta - costosAsociados;
       const gananciaNeta = netoRecibido - productCostWithIva;
       const margenNeto = price > 0 ? (gananciaNeta / price) * 100 : 0;
-      return { ...s, precioVenta, costosAsociados, netoRecibido, gananciaNeta, margenNeto };
+      return { ...s, itemAmounts, descuento, precioVenta, costosAsociados, costosAsociadosPct, netoRecibido, gananciaNeta, margenNeto };
     }).sort((a, b) => b.margenNeto - a.margenNeto);
-  }, [scenarios, price, productCostWithIva]);
+  }, [scenarios, price, iva, cost, productCostWithIva]);
 
   const updateScenario = (id, field, value) => {
     setScenarios(scenarios.map(s => s.id === id ? { ...s, [field]: value } : s));
@@ -1724,7 +1739,29 @@ function RentabilidadCalculator({ products, paymentMethods, paymentBonuses, taxR
   const removeScenario = (id) => setScenarios(scenarios.filter(s => s.id !== id));
 
   const addCustomScenario = () => {
-    setScenarios([...scenarios, { id: `custom-${Date.now()}-${Math.random()}`, name: '', bonus: 0, costPct: 0, isCustom: true }]);
+    const id = `custom-${Date.now()}-${Math.random()}`;
+    setScenarios([...scenarios, { id, name: '', bonus: 0, costItems: [], isCustom: true }]);
+    setExpandedIds(prev => ({ ...prev, [id]: true }));
+  };
+
+  const toggleExpanded = (id) => setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const addCostItem = (scenarioId) => {
+    setScenarios(scenarios.map(s => s.id === scenarioId
+      ? { ...s, costItems: [...(s.costItems || []), { id: `item-${Date.now()}-${Math.random()}`, name: '', base: 'Precio Lista c/IVA', value: 0 }] }
+      : s));
+  };
+
+  const updateCostItem = (scenarioId, itemId, field, value) => {
+    setScenarios(scenarios.map(s => s.id === scenarioId
+      ? { ...s, costItems: s.costItems.map(item => item.id === itemId ? { ...item, [field]: value } : item) }
+      : s));
+  };
+
+  const removeCostItem = (scenarioId, itemId) => {
+    setScenarios(scenarios.map(s => s.id === scenarioId
+      ? { ...s, costItems: s.costItems.filter(item => item.id !== itemId) }
+      : s));
   };
 
   const bestId = results[0]?.id;
@@ -1810,26 +1847,73 @@ function RentabilidadCalculator({ products, paymentMethods, paymentBonuses, taxR
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {results.map(s => (
-                    <tr key={s.id} className={s.id === bestId ? 'bg-emerald-50/60' : ''}>
-                      <td className="py-3 pr-2">
-                        {s.isCustom ? (
-                          <input type="text" placeholder="Nombre..." className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={s.name} onChange={e => updateScenario(s.id, 'name', e.target.value)} />
-                        ) : (
-                          <span className="font-bold text-sm text-stone-800">{s.name}</span>
-                        )}
-                        {s.id === bestId && <span className="block text-[8px] font-black uppercase tracking-widest text-emerald-600 mt-1">★ Mejor Opción</span>}
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        <input type="number" className="w-20 bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={String(s.bonus)} onChange={e => updateScenario(s.id, 'bonus', e.target.value)} />
-                      </td>
-                      <td className="py-3 px-2 text-center">
-                        <input type="number" className="w-20 bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={String(s.costPct)} onChange={e => updateScenario(s.id, 'costPct', e.target.value)} />
-                      </td>
-                      <td className="py-3 px-2 text-right font-bold text-stone-700">{formatCurrency(s.netoRecibido)}</td>
-                      <td className={`py-3 px-2 text-right font-black ${s.gananciaNeta >= 0 ? 'text-stone-900' : 'text-rose-600'}`}>{formatCurrency(s.gananciaNeta)}</td>
-                      <td className={`py-3 px-2 text-right font-black text-base tracking-tight ${s.margenNeto >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{s.margenNeto.toFixed(1)}%</td>
-                      <td className="py-3 pl-2 text-center"><button onClick={() => removeScenario(s.id)} className="p-1.5 text-stone-300 hover:text-red-500 transition"><Trash2 className="w-4 h-4" /></button></td>
-                    </tr>
+                    <React.Fragment key={s.id}>
+                      <tr className={s.id === bestId ? 'bg-emerald-50/60' : ''}>
+                        <td className="py-3 pr-2">
+                          {s.isCustom ? (
+                            <input type="text" placeholder="Nombre..." className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={s.name} onChange={e => updateScenario(s.id, 'name', e.target.value)} />
+                          ) : (
+                            <span className="font-bold text-sm text-stone-800">{s.name}</span>
+                          )}
+                          {s.id === bestId && <span className="block text-[8px] font-black uppercase tracking-widest text-emerald-600 mt-1">★ Mejor Opción</span>}
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <input type="number" className="w-20 bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={String(s.bonus)} onChange={e => updateScenario(s.id, 'bonus', e.target.value)} />
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <button type="button" onClick={() => toggleExpanded(s.id)} className="flex items-center gap-1 mx-auto px-2 py-1.5 rounded-lg hover:bg-stone-100 transition">
+                            <span className="font-bold text-sm text-stone-700">{s.costosAsociadosPct.toFixed(1)}%</span>
+                            <span className="w-5 h-5 rounded-full bg-stone-100 flex items-center justify-center text-stone-500">
+                              {expandedIds[s.id] ? <ChevronDown className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="py-3 px-2 text-right font-bold text-stone-700">{formatCurrency(s.netoRecibido)}</td>
+                        <td className={`py-3 px-2 text-right font-black ${s.gananciaNeta >= 0 ? 'text-stone-900' : 'text-rose-600'}`}>{formatCurrency(s.gananciaNeta)}</td>
+                        <td className={`py-3 px-2 text-right font-black text-base tracking-tight ${s.margenNeto >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{s.margenNeto.toFixed(1)}%</td>
+                        <td className="py-3 pl-2 text-center"><button onClick={() => removeScenario(s.id)} className="p-1.5 text-stone-300 hover:text-red-500 transition"><Trash2 className="w-4 h-4" /></button></td>
+                      </tr>
+                      {expandedIds[s.id] && (
+                        <tr className="bg-[#f4f2f0]/50">
+                          <td colSpan="7" className="p-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                              <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+                                <h5 className="text-[9px] font-black uppercase tracking-widest text-stone-500 mb-4 border-b border-stone-100 pb-2">Cómo se llega al resultado</h5>
+                                <div className="space-y-2 text-xs font-bold">
+                                  <div className="flex justify-between text-stone-600"><span>Precio de Lista</span><span>{formatCurrency(price)}</span></div>
+                                  <div className="flex justify-between text-rose-500"><span>Descuento ({parseFloat(s.bonus) || 0}%)</span><span>-{formatCurrency(s.descuento)}</span></div>
+                                  <div className="flex justify-between text-stone-800 border-t border-stone-100 pt-2"><span>= Precio de Venta</span><span>{formatCurrency(s.precioVenta)}</span></div>
+                                  <div className="flex justify-between text-rose-500"><span>Costos Asociados ({s.costosAsociadosPct.toFixed(1)}%)</span><span>-{formatCurrency(s.costosAsociados)}</span></div>
+                                  <div className="flex justify-between text-stone-800 border-t border-stone-100 pt-2"><span>= Neto Recibido</span><span>{formatCurrency(s.netoRecibido)}</span></div>
+                                  <div className="flex justify-between text-rose-500"><span>Costo del Producto (c/IVA)</span><span>-{formatCurrency(productCostWithIva)}</span></div>
+                                  <div className={`flex justify-between border-t border-stone-200 pt-2 text-sm ${s.gananciaNeta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}><span>= Ganancia Neta</span><span>{formatCurrency(s.gananciaNeta)}</span></div>
+                                </div>
+                              </div>
+                              <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
+                                <div className="flex justify-between items-center mb-4 border-b border-stone-100 pb-2">
+                                  <h5 className="text-[9px] font-black uppercase tracking-widest text-stone-500">Desglose de Costos Asociados</h5>
+                                  <button type="button" onClick={() => addCostItem(s.id)} className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[#b5a898] hover:text-[#8c8173] transition"><Plus className="w-3.5 h-3.5" /> Agregar</button>
+                                </div>
+                                {(s.itemAmounts || []).length === 0 && <p className="text-xs text-stone-400 font-bold uppercase py-4 text-center">Sin costos asociados configurados.</p>}
+                                <div className="space-y-3">
+                                  {(s.itemAmounts || []).map(item => (
+                                    <div key={item.id} className="flex flex-wrap items-center gap-2 bg-stone-50 p-3 rounded-xl border border-stone-100">
+                                      <input type="text" placeholder="Concepto..." className="flex-1 min-w-[100px] bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-xs font-bold outline-none" value={item.name} onChange={e => updateCostItem(s.id, item.id, 'name', e.target.value)} />
+                                      <select className="bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none" value={item.base} onChange={e => updateCostItem(s.id, item.id, 'base', e.target.value)}>
+                                        {BASE_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
+                                      </select>
+                                      <input type="number" className="w-16 bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-center text-xs font-bold outline-none" value={String(item.value)} onChange={e => updateCostItem(s.id, item.id, 'value', e.target.value)} />
+                                      <span className="text-[10px] font-black text-rose-500 w-24 text-right">-{formatCurrency(item.amount)}</span>
+                                      <button type="button" onClick={() => removeCostItem(s.id, item.id)} className="p-1 text-stone-300 hover:text-red-500 transition"><X className="w-3.5 h-3.5" /></button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
