@@ -1472,7 +1472,8 @@ function PnLView({ sales, purchases, paymentBonuses, taxRules }) {
   );
 }
 
-function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm }) {
+function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm, products, paymentMethods }) {
+  const [activeTab, setActiveTab] = useState('sales');
   const [expandedSale, setExpandedSale] = useState(null);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0];
@@ -1552,6 +1553,17 @@ function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm }) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-stone-200 shadow-sm w-fit">
+        <button onClick={() => setActiveTab('sales')} className={`px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition ${activeTab === 'sales' ? 'bg-[#b5a898] text-white shadow-md' : 'text-stone-400 hover:text-stone-700'}`}>Rentabilidad por Venta</button>
+        <button onClick={() => setActiveTab('calculator')} className={`px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition ${activeTab === 'calculator' ? 'bg-[#b5a898] text-white shadow-md' : 'text-stone-400 hover:text-stone-700'}`}>Calculadora de Rentabilidad</button>
+      </div>
+
+      {activeTab === 'calculator' && (
+        <RentabilidadCalculator products={products} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} taxRules={taxRules} />
+      )}
+
+      {activeTab === 'sales' && (
+      <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div className="flex items-center gap-3 text-stone-900 uppercase">
           <div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><PieChart className="w-6 h-6" /></div>
@@ -1644,6 +1656,187 @@ function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm }) {
           </table>
         </div>
       </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+function RentabilidadCalculator({ products, paymentMethods, paymentBonuses, taxRules }) {
+  const [productSearch, setProductSearch] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [cost, setCost] = useState(0);
+  const [iva, setIva] = useState(21);
+  const [margin, setMargin] = useState(50);
+  const [scenarios, setScenarios] = useState([]);
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return [];
+    return products.filter(p => String(p.name).toLowerCase().includes(productSearch.toLowerCase())).slice(0, 8);
+  }, [productSearch, products]);
+
+  const buildScenariosForProduct = (product) => {
+    return paymentMethods.map(pm => {
+      const bonus = paymentBonuses.find(b => b.method === pm.name)?.value || 0;
+      const matchingRules = taxRules.filter(r => (r.category === product.category || r.category === 'Todas') && (r.paymentMethod === pm.name || r.paymentMethod === 'Todas'));
+      const costPct = matchingRules.reduce((acc, r) => acc + r.concepts.reduce((a, c) => a + (parseFloat(c.value) || 0), 0), 0);
+      return { id: `sys-${pm.name}`, name: pm.name, bonus, costPct, isCustom: false };
+    });
+  };
+
+  const selectProduct = (p) => {
+    setSelectedProduct(p);
+    setProductSearch(String(p.name));
+    setShowResults(false);
+    setCost(p.cost || 0);
+    setIva(p.iva ?? 21);
+    setMargin(p.margin ?? 50);
+    setScenarios(buildScenariosForProduct(p));
+  };
+
+  const price = useMemo(() => {
+    const c = parseFloat(cost) || 0;
+    const i = parseFloat(iva) || 0;
+    const m = parseFloat(margin) || 0;
+    return Math.round(c * (1 + i / 100) * (1 + m / 100));
+  }, [cost, iva, margin]);
+
+  const productCostWithIva = useMemo(() => (parseFloat(cost) || 0) * (1 + (parseFloat(iva) || 0) / 100), [cost, iva]);
+
+  const results = useMemo(() => {
+    return scenarios.map(s => {
+      const bonus = parseFloat(s.bonus) || 0;
+      const costPct = parseFloat(s.costPct) || 0;
+      const precioVenta = price * (1 - bonus / 100);
+      const costosAsociados = price * (costPct / 100);
+      const netoRecibido = precioVenta - costosAsociados;
+      const gananciaNeta = netoRecibido - productCostWithIva;
+      const margenNeto = price > 0 ? (gananciaNeta / price) * 100 : 0;
+      return { ...s, precioVenta, costosAsociados, netoRecibido, gananciaNeta, margenNeto };
+    }).sort((a, b) => b.margenNeto - a.margenNeto);
+  }, [scenarios, price, productCostWithIva]);
+
+  const updateScenario = (id, field, value) => {
+    setScenarios(scenarios.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const removeScenario = (id) => setScenarios(scenarios.filter(s => s.id !== id));
+
+  const addCustomScenario = () => {
+    setScenarios([...scenarios, { id: `custom-${Date.now()}-${Math.random()}`, name: '', bonus: 0, costPct: 0, isCustom: true }]);
+  };
+
+  const bestId = results[0]?.id;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm p-8">
+        <h4 className="text-sm font-black uppercase tracking-widest text-stone-800 flex items-center gap-2 mb-6 border-b border-stone-100 pb-4">
+          <Package className="w-5 h-5 text-[#b5a898]" /> 1. Seleccionar Producto
+        </h4>
+        <div className="relative max-w-md">
+          <input
+            type="text"
+            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]"
+            placeholder="Buscar producto del inventario..."
+            value={productSearch}
+            onChange={(e) => { setProductSearch(e.target.value); setShowResults(true); }}
+          />
+          {showResults && filteredProducts.length > 0 && (
+            <div className="absolute top-full left-0 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 max-h-56 overflow-y-auto">
+              {filteredProducts.map(p => (
+                <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => selectProduct(p)} className="w-full text-left p-3 hover:bg-stone-50 border-b border-stone-100 flex justify-between items-center transition">
+                  <span className="font-bold text-sm text-stone-800">{String(p.name)}</span>
+                  <span className="text-[10px] font-black text-stone-400 uppercase">{p.category}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {!selectedProduct && <p className="text-xs text-stone-400 font-bold uppercase mt-4">Elegí un producto del inventario para empezar el análisis.</p>}
+      </div>
+
+      {selectedProduct && (
+        <>
+          <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm p-8">
+            <h4 className="text-sm font-black uppercase tracking-widest text-stone-800 flex items-center gap-2 mb-6 border-b border-stone-100 pb-4">
+              <Boxes className="w-5 h-5 text-[#b5a898]" /> 2. Costos del Producto <span className="text-stone-400 normal-case font-bold tracking-normal">(editable solo para esta simulación)</span>
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-stone-400 uppercase ml-1">Costo ($)</label>
+                <input type="number" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-black text-stone-800 outline-none focus:ring-2 focus:ring-[#b5a898]" value={String(cost)} onChange={e => setCost(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-stone-400 uppercase ml-1">IVA %</label>
+                <input type="number" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-black text-stone-800 outline-none focus:ring-2 focus:ring-[#b5a898]" value={String(iva)} onChange={e => setIva(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#b5a898] uppercase ml-1">Margen %</label>
+                <input type="number" className="w-full bg-white border border-[#b5a898] rounded-xl px-4 py-3 font-black text-[#8c8173] outline-none focus:ring-2 focus:ring-[#b5a898]" value={String(margin)} onChange={e => setMargin(e.target.value)} />
+              </div>
+              <div className="bg-stone-50 rounded-xl border border-stone-200 p-4 flex flex-col justify-center items-center text-center">
+                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Precio de Lista</p>
+                <p className="text-xl font-black text-stone-900 tracking-tight">{formatCurrency(price)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm p-8">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-stone-100 pb-4">
+              <h4 className="text-sm font-black uppercase tracking-widest text-stone-800 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-[#b5a898]" /> 3. Formas de Pago a Comparar
+              </h4>
+              <button onClick={addCustomScenario} className="bg-black text-white px-5 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-800 transition shadow-sm flex items-center gap-2 w-fit">
+                <Plus className="w-4 h-4" /> Simular Nueva Forma de Pago
+              </button>
+            </div>
+
+            {results.length === 0 && <p className="text-xs text-stone-400 font-bold uppercase text-center py-8">No hay formas de pago para comparar. Agregá una con el botón de arriba.</p>}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[9px] text-stone-400 uppercase tracking-widest border-b border-stone-200">
+                    <th className="pb-3 pr-2">Forma de Pago</th>
+                    <th className="pb-3 px-2 text-center">Descuento %</th>
+                    <th className="pb-3 px-2 text-center">Costo Asoc. %</th>
+                    <th className="pb-3 px-2 text-right">Neto Recibido</th>
+                    <th className="pb-3 px-2 text-right">Ganancia Neta</th>
+                    <th className="pb-3 px-2 text-right">Margen Neto</th>
+                    <th className="pb-3 pl-2 text-center">-</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {results.map(s => (
+                    <tr key={s.id} className={s.id === bestId ? 'bg-emerald-50/60' : ''}>
+                      <td className="py-3 pr-2">
+                        {s.isCustom ? (
+                          <input type="text" placeholder="Nombre..." className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={s.name} onChange={e => updateScenario(s.id, 'name', e.target.value)} />
+                        ) : (
+                          <span className="font-bold text-sm text-stone-800">{s.name}</span>
+                        )}
+                        {s.id === bestId && <span className="block text-[8px] font-black uppercase tracking-widest text-emerald-600 mt-1">★ Mejor Opción</span>}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <input type="number" className="w-20 bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={String(s.bonus)} onChange={e => updateScenario(s.id, 'bonus', e.target.value)} />
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <input type="number" className="w-20 bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-center font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={String(s.costPct)} onChange={e => updateScenario(s.id, 'costPct', e.target.value)} />
+                      </td>
+                      <td className="py-3 px-2 text-right font-bold text-stone-700">{formatCurrency(s.netoRecibido)}</td>
+                      <td className={`py-3 px-2 text-right font-black ${s.gananciaNeta >= 0 ? 'text-stone-900' : 'text-rose-600'}`}>{formatCurrency(s.gananciaNeta)}</td>
+                      <td className={`py-3 px-2 text-right font-black text-base tracking-tight ${s.margenNeto >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{s.margenNeto.toFixed(1)}%</td>
+                      <td className="py-3 pl-2 text-center"><button onClick={() => removeScenario(s.id)} className="p-1.5 text-stone-300 hover:text-red-500 transition"><Trash2 className="w-4 h-4" /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -3798,7 +3991,7 @@ export default function App() {
           {currentView === 'dashboard' && <DashboardView sales={sales} products={products} purchases={purchases} transfers={transfers} accounts={accounts} paymentMethods={paymentMethods} taxRules={taxRules} paymentBonuses={paymentBonuses} />}
           {currentView === 'cashflow' && <CashFlowView sales={sales} purchases={purchases} transfers={transfers} setTransfers={setTransfers} accounts={accounts} searchTerm={searchTerm} />}
           {currentView === 'pnl' && <PnLView sales={sales} purchases={purchases} paymentBonuses={paymentBonuses} taxRules={taxRules} />}
-          {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} />}
+          {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} products={products} paymentMethods={paymentMethods} />}
           {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { setQuoteToConvert(quote); setCurrentView('sales'); }} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
           {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
