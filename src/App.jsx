@@ -2094,9 +2094,10 @@ function CashFlowView({ sales, purchases, transfers, setTransfers, accounts, sea
 // --- VISTAS INVENTARIO Y EXCEL ---
 
 function MassUploadModal({ onUpload, onClose, categoryMargins }) {
-  const [step, setStep] = useState('upload'); 
+  const [step, setStep] = useState('upload');
   const [csvHeaders, setCsvHeaders] = useState([]);
   const [csvRows, setCsvRows] = useState([]);
+  const [previewProducts, setPreviewProducts] = useState([]);
   const fileInputRef = useRef(null);
   const [mapping, setMapping] = useState({ name: -1, category: -1, supplier: -1, stock: -1, minStock: -1, cost: -1, iva: -1, margin: -1, material: -1, dimensions: -1 });
 
@@ -2124,12 +2125,12 @@ function MassUploadModal({ onUpload, onClose, categoryMargins }) {
     reader.readAsText(file);
   };
 
-  const processImport = () => {
+  const buildPreview = () => {
     const finalProducts = csvRows.map((row, index) => {
       const category = mapping.category !== -1 && row[mapping.category] ? String(row[mapping.category]) : 'General';
       const cost = mapping.cost !== -1 ? parseLocaleNumber(row[mapping.cost]) : 0;
       const iva = mapping.iva !== -1 ? parseLocaleNumber(row[mapping.iva]) : 21;
-      
+
       const parsedMargin = mapping.margin !== -1 && row[mapping.margin] ? parseLocaleNumber(row[mapping.margin]) : null;
       const catMargin = categoryMargins.find(m => m.category === category);
       const margin = parsedMargin !== null ? parsedMargin : (catMargin ? catMargin.margin : 50);
@@ -2147,7 +2148,13 @@ function MassUploadModal({ onUpload, onClose, categoryMargins }) {
         cost, iva, margin, price: finalPrice, material: mapping.material !== -1 ? String(row[mapping.material]) : '-', dimensions: mapping.dimensions !== -1 ? String(row[mapping.dimensions]) : '-'
       };
     });
-    onUpload(finalProducts); setStep('success');
+    setPreviewProducts(finalProducts);
+    setStep('preview');
+  };
+
+  const confirmImport = () => {
+    onUpload(previewProducts);
+    setStep('success');
   };
 
   const handleDownloadTemplate = () => {
@@ -2166,12 +2173,12 @@ function MassUploadModal({ onUpload, onClose, categoryMargins }) {
 
   return (
     <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95">
-        <div className="bg-black p-6 flex justify-between items-center text-white">
+      <div className="bg-white rounded-[2rem] w-full max-w-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+        <div className="bg-black p-6 flex justify-between items-center text-white shrink-0">
           <h3 className="font-bold uppercase tracking-widest text-xs flex items-center gap-2"><UploadCloud className="w-5 h-5 text-[#b5a898]" /> Importador Masivo</h3>
           <button onClick={onClose} className="hover:text-[#b5a898] transition"><X className="w-5 h-5" /></button>
         </div>
-        <div className="p-8">
+        <div className="p-8 overflow-y-auto flex-1">
           {step === 'upload' && (
             <div className="text-center space-y-6">
               <FileSpreadsheet className="w-16 h-16 text-stone-300 mx-auto" />
@@ -2198,7 +2205,47 @@ function MassUploadModal({ onUpload, onClose, categoryMargins }) {
                   </div>
                 ))}
               </div>
-              <button onClick={processImport} className="w-full bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-md hover:bg-[#a39686] transition">Procesar Importación</button>
+              <button onClick={buildPreview} className="w-full bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-md hover:bg-[#a39686] transition">Ver Vista Previa</button>
+            </div>
+          )}
+          {step === 'preview' && (
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-stone-500">
+                Vista Previa ({previewProducts.length} producto{previewProducts.length === 1 ? '' : 's'} a importar)
+              </h4>
+              <div className="overflow-x-auto max-h-[340px] overflow-y-auto border border-stone-100 rounded-xl">
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 bg-stone-50">
+                    <tr className="text-[9px] text-stone-400 uppercase tracking-widest border-b border-stone-200">
+                      <th className="py-2 px-4">Nombre</th>
+                      <th className="py-2 px-4">Categoría</th>
+                      <th className="py-2 px-4">Proveedor</th>
+                      <th className="py-2 px-4 text-center">Stock</th>
+                      <th className="py-2 px-4 text-right">Costo</th>
+                      <th className="py-2 px-4 text-right">Precio Final</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {previewProducts.map(p => (
+                      <tr key={p.id} className={!p.cost ? 'bg-rose-50/60' : ''}>
+                        <td className="py-2 px-4 font-bold text-xs text-stone-800">{p.name}</td>
+                        <td className="py-2 px-4 text-xs font-bold text-stone-600">{p.category}</td>
+                        <td className="py-2 px-4 text-xs font-bold text-stone-600">{p.supplier}</td>
+                        <td className="py-2 px-4 text-center text-xs font-bold text-stone-600">{p.stock}</td>
+                        <td className={`py-2 px-4 text-right text-xs font-black ${!p.cost ? 'text-rose-600' : 'text-stone-800'}`}>{formatCurrency(p.cost)}</td>
+                        <td className="py-2 px-4 text-right text-xs font-black text-[#8c8173]">{formatCurrency(p.price)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {previewProducts.some(p => !p.cost) && (
+                <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">⚠ Las filas en rojo tienen Costo $0 — revisá el mapeo de columnas antes de confirmar.</p>
+              )}
+              <div className="flex gap-4">
+                <button onClick={() => setStep('mapping')} className="flex-1 bg-stone-100 text-stone-600 py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-stone-200 transition">Volver al Mapeo</button>
+                <button onClick={confirmImport} className="flex-1 bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-md hover:bg-[#a39686] transition">Confirmar e Importar</button>
+              </div>
             </div>
           )}
           {step === 'success' && (
@@ -2729,7 +2776,7 @@ function InventoryView({ products, setProducts, categories, categoryMargins, sea
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-stone-900">
-                    <thead><tr className="bg-[#f4f2f0] text-stone-500 text-[10px] font-bold uppercase tracking-widest border-b border-stone-200"><th className="p-6">Producto</th><th className="p-6">Detalles</th><th className="p-6 text-center">Stock</th><th className="p-6 text-right">Precio Lista</th><th className="p-6 text-center">Editar</th></tr></thead>
+                    <thead><tr className="bg-[#f4f2f0] text-stone-500 text-[10px] font-bold uppercase tracking-widest border-b border-stone-200"><th className="p-6">Producto</th><th className="p-6">Detalles</th><th className="p-6 text-center">Stock</th><th className="p-6 text-right">Precio Lista</th><th className="p-6 text-center">Acciones</th></tr></thead>
                     <tbody className="divide-y divide-stone-100">
                       {filtered.map(product => (
                         <tr key={product.id} className="hover:bg-stone-50/50 transition">
@@ -2737,7 +2784,12 @@ function InventoryView({ products, setProducts, categories, categoryMargins, sea
                           <td className="p-6"><p className="text-xs font-bold text-[#333333]">{String(product.supplier)}</p><p className="text-[9px] text-[#a8a096] uppercase font-bold mt-0.5">{String(product.category)} • {String(product.dimensions)}</p></td>
                           <td className="p-6 text-center"><span className={`inline-block px-3 py-1 rounded-md font-black text-xs ${product.stock <= product.minStock ? 'bg-rose-100 text-rose-700' : 'bg-stone-100 text-stone-700'}`}>{String(product.stock)}</span></td>
                           <td className="p-6 text-right"><p className="text-base font-black text-[#1a1a1a]">{formatCurrency(product.price)}</p><p className="text-[9px] font-bold text-[#8c8173] uppercase mt-0.5">Mrg {String(product.margin)}%</p></td>
-                          <td className="p-6 text-center"><button onClick={() => { setEditingProduct(product); setIsAdding(true); }} className="p-2 text-stone-400 hover:text-black hover:bg-stone-100 rounded-lg transition"><Pencil className="w-4 h-4" /></button></td>
+                          <td className="p-6 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => { setEditingProduct(product); setIsAdding(true); }} className="p-2 text-stone-400 hover:text-black hover:bg-stone-100 rounded-lg transition"><Pencil className="w-4 h-4" /></button>
+                              <button onClick={() => { if (confirm(`¿Eliminar "${product.name}" del inventario?`)) setProducts(products.filter(p => p.id !== product.id)); }} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
