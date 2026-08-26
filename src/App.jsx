@@ -96,6 +96,17 @@ const generateSKU = () => {
   return result;
 };
 
+const findDuplicateGroups = (products) => {
+  const groups = {};
+  products.forEach(p => {
+    const key = String(p.name || '').trim().toLowerCase();
+    if (!key) return;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(p);
+  });
+  return Object.values(groups).filter(g => g.length > 1);
+};
+
 // --- COMPONENTES DE APOYO ---
 
 function StatCard({ title, value, icon, color }) {
@@ -2668,13 +2679,97 @@ function BulkCostUpdateModal({ products, categories, onApply, onClose }) {
   );
 }
 
+function DuplicateProductsView({ products, setProducts, duplicateGroups }) {
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  useEffect(() => {
+    const preselect = new Set();
+    duplicateGroups.forEach(group => {
+      const sorted = [...group].sort((a, b) => (a.id || 0) - (b.id || 0));
+      sorted.slice(1).forEach(p => preselect.add(p.id));
+    });
+    setSelectedIds(preselect);
+  }, [duplicateGroups]);
+
+  const toggle = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`¿Eliminar ${selectedIds.size} producto${selectedIds.size === 1 ? '' : 's'} duplicado${selectedIds.size === 1 ? '' : 's'}?`)) return;
+    setProducts(products.filter(p => !selectedIds.has(p.id)));
+  };
+
+  if (duplicateGroups.length === 0) {
+    return (
+      <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm py-32 text-center text-stone-400 flex flex-col items-center">
+        <CheckCircle2 className="w-12 h-12 mb-4 text-emerald-400" />
+        <p className="font-bold text-xs uppercase tracking-widest">No se detectaron productos duplicados</p>
+        <p className="text-[10px] uppercase tracking-widest mt-2 text-stone-400">Se agrupan por nombre exacto (sin importar mayúsculas o espacios)</p>
+      </div>
+    );
+  }
+
+  const totalDuplicateItems = duplicateGroups.reduce((acc, g) => acc + g.length, 0);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h4 className="font-black text-rose-700 uppercase tracking-widest text-sm">
+            {duplicateGroups.length} grupo{duplicateGroups.length === 1 ? '' : 's'} duplicado{duplicateGroups.length === 1 ? '' : 's'} ({totalDuplicateItems} productos en total)
+          </h4>
+          <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mt-1">Se preseleccionó para borrar todo menos el más antiguo de cada grupo. Revisá antes de confirmar.</p>
+        </div>
+        <button onClick={handleDelete} disabled={selectedIds.size === 0} className="bg-rose-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-md hover:bg-rose-700 transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 shrink-0">
+          <Trash2 className="w-4 h-4" /> Eliminar {selectedIds.size} Seleccionados
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {duplicateGroups.map((group, gi) => {
+          const sorted = [...group].sort((a, b) => (a.id || 0) - (b.id || 0));
+          return (
+            <div key={gi} className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+              <div className="bg-stone-50 px-6 py-3 border-b border-stone-200 flex justify-between items-center">
+                <span className="font-bold text-sm text-stone-800">{sorted[0].name}</span>
+                <span className="text-[10px] font-black uppercase text-stone-400 tracking-widest">{sorted.length} copias</span>
+              </div>
+              <div className="divide-y divide-stone-100">
+                {sorted.map((p, idx) => (
+                  <label key={p.id} className="flex flex-wrap items-center gap-4 px-6 py-3 hover:bg-stone-50 cursor-pointer transition">
+                    <input type="checkbox" className="w-4 h-4 accent-rose-600 shrink-0" checked={selectedIds.has(p.id)} onChange={() => toggle(p.id)} />
+                    <span className="text-[9px] font-black uppercase text-stone-400 w-24 shrink-0">{idx === 0 ? 'Más Antiguo' : `Copia ${idx}`}</span>
+                    <span className="text-[10px] font-bold text-[#b5a898] uppercase w-24 shrink-0 truncate">{p.sku}</span>
+                    <span className="text-xs font-bold text-stone-600 flex-1 min-w-[140px] truncate">{p.category} • {p.supplier || 'Sin Proveedor'}</span>
+                    <span className="text-xs font-black text-stone-800 w-16 text-center shrink-0">Stk {p.stock ?? 0}</span>
+                    <span className="text-xs font-bold text-stone-500 w-24 text-right shrink-0">{formatCurrency(p.cost)}</span>
+                    <span className="text-xs font-black text-stone-900 w-28 text-right shrink-0">{formatCurrency(p.price)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function InventoryView({ products, setProducts, categories, categoryMargins, searchTerm, sales }) {
-  const [activeTab, setActiveTab] = useState('catalogo'); // 'catalogo' | 'reportes'
+  const [activeTab, setActiveTab] = useState('catalogo'); // 'catalogo' | 'reportes' | 'duplicados'
   const [isAdding, setIsAdding] = useState(false);
   const [isMassLoading, setIsMassLoading] = useState(false);
   const [isBulkCostUpdating, setIsBulkCostUpdating] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [editingProduct, setEditingProduct] = useState(null);
+
+  const duplicateGroups = useMemo(() => findDuplicateGroups(products), [products]);
 
   const filtered = useMemo(() => {
     return products.filter(p => {
@@ -2722,11 +2817,17 @@ function InventoryView({ products, setProducts, categories, categoryMargins, sea
         <div className="flex bg-white p-1.5 rounded-2xl border border-stone-200 shadow-sm w-fit">
           <button onClick={() => setActiveTab('catalogo')} className={`px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 ${activeTab === 'catalogo' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Package className="w-3.5 h-3.5" /> Catálogo</button>
           <button onClick={() => setActiveTab('reportes')} className={`px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 ${activeTab === 'reportes' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><BarChart2 className="w-3.5 h-3.5" /> Reportes de Stock</button>
+          <button onClick={() => setActiveTab('duplicados')} className={`px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 ${activeTab === 'duplicados' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}>
+            <AlertCircle className="w-3.5 h-3.5" /> Duplicados
+            {duplicateGroups.length > 0 && <span className="bg-rose-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">{duplicateGroups.length}</span>}
+          </button>
         </div>
       </div>
 
       {activeTab === 'reportes' ? (
          <InventoryReportsView products={products} sales={sales} />
+      ) : activeTab === 'duplicados' ? (
+         <DuplicateProductsView products={products} setProducts={setProducts} duplicateGroups={duplicateGroups} />
       ) : (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
