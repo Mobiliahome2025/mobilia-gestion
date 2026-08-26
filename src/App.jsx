@@ -2144,7 +2144,18 @@ function MassUploadModal({ onUpload, onClose, categoryMargins }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target.result;
+      const bytes = new Uint8Array(event.target.result);
+      let text;
+      if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+        // BOM UTF-8 explícito
+        text = new TextDecoder('utf-8').decode(bytes);
+      } else {
+        const utf8Text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+        // Excel en Windows suele exportar el CSV en Windows-1252, no UTF-8.
+        // Leerlo como UTF-8 rompe tildes y "ñ" (aparecen como �), así que si
+        // detectamos el caracter de reemplazo, lo volvemos a leer como Windows-1252.
+        text = utf8Text.includes('�') ? new TextDecoder('windows-1252').decode(bytes) : utf8Text;
+      }
       const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
       if (lines.length === 0) return;
       const separator = lines[0].includes(';') ? ';' : ',';
@@ -2153,7 +2164,7 @@ function MassUploadModal({ onUpload, onClose, categoryMargins }) {
       setCsvHeaders(headers); setCsvRows(rows);
       setStep('mapping');
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const buildPreview = () => {
