@@ -107,6 +107,26 @@ const findDuplicateGroups = (products) => {
   return Object.values(groups).filter(g => g.length > 1);
 };
 
+const normalizeKey = (v) => String(v || '').trim().toLowerCase();
+
+// Agrupa valores de texto que son iguales salvo mayúsculas/minúsculas o espacios,
+// devolviendo cada variante encontrada con su cantidad de apariciones.
+const groupSimilarValues = (values) => {
+  const map = new Map();
+  values.forEach(v => {
+    const raw = String(v || '').trim();
+    if (!raw) return;
+    const key = raw.toLowerCase();
+    if (!map.has(key)) map.set(key, new Map());
+    const variantMap = map.get(key);
+    variantMap.set(raw, (variantMap.get(raw) || 0) + 1);
+  });
+  return Array.from(map.entries()).map(([key, variantMap]) => ({
+    key,
+    variants: Array.from(variantMap.entries()).map(([raw, count]) => ({ raw, count })).sort((a, b) => b.count - a.count)
+  }));
+};
+
 // --- COMPONENTES DE APOYO ---
 
 function StatCard({ title, value, icon, color }) {
@@ -3648,9 +3668,30 @@ function VariableManager({ title, list, setList, icon: Icon, placeholder }) {
   const [newItem, setNewItem] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
   const [editValue, setEditValue] = useState('');
-  const addItem = (e) => { e.preventDefault(); if (newItem.trim() && !list.includes(newItem)) { setList([...list, newItem.trim()]); setNewItem(''); } };
+  const addItem = (e) => {
+    e.preventDefault();
+    const trimmed = newItem.trim();
+    if (!trimmed) return;
+    if (list.some(i => normalizeKey(i) === normalizeKey(trimmed))) {
+      alert(`Ya existe "${trimmed}" (con distintas mayúsculas o espacios). Usá el mismo nombre existente.`);
+      return;
+    }
+    setList([...list, trimmed]);
+    setNewItem('');
+  };
   const startEdit = (index, value) => { setEditingIndex(index); setEditValue(value); };
-  const saveEdit = (index) => { if (editValue.trim()) { const newList = [...list]; newList[index] = editValue.trim(); setList(newList); setEditingIndex(null); } };
+  const saveEdit = (index) => {
+    const trimmed = editValue.trim();
+    if (!trimmed) return;
+    if (list.some((i, idx) => idx !== index && normalizeKey(i) === normalizeKey(trimmed))) {
+      alert(`Ya existe "${trimmed}" (con distintas mayúsculas o espacios). Usá el mismo nombre existente.`);
+      return;
+    }
+    const newList = [...list];
+    newList[index] = trimmed;
+    setList(newList);
+    setEditingIndex(null);
+  };
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 uppercase">
       <div className="flex items-center gap-3 mb-8 text-stone-900"><div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><Icon className="w-6 h-6" /></div><h3 className="text-xl font-black">{title}</h3></div>
@@ -4215,12 +4256,203 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
   );
 }
 
-function VariablesView({ categories, setCategories, expenseCategories, setExpenseCategories, paymentMethods, setPaymentMethods, taxRules, setTaxRules, paymentBonuses, setPaymentBonuses, categoryMargins, setCategoryMargins, taxConcepts, setTaxConcepts, accounts, setAccounts, loanAdvances, setLoanAdvances }) {
+function DataCleanupView({ products, setProducts, categories, setCategories, categoryMargins, setCategoryMargins, loanAdvances, setLoanAdvances, taxRules, setTaxRules }) {
+  const [catCanonical, setCatCanonical] = useState({});
+  const [supCanonical, setSupCanonical] = useState({});
+  const [reassignTarget, setReassignTarget] = useState({});
+  const [bulkAssignCategory, setBulkAssignCategory] = useState('');
+
+  const categoryGroups = useMemo(() => groupSimilarValues([...categories, ...products.map(p => p.category)]), [categories, products]);
+  const duplicateCategoryGroups = useMemo(() => categoryGroups.filter(g => g.variants.length > 1), [categoryGroups]);
+
+  const officialKeys = useMemo(() => new Set(categories.map(c => normalizeKey(c))), [categories]);
+  const unofficialCategories = useMemo(() => {
+    return categoryGroups
+      .filter(g => g.variants.length === 1 && !officialKeys.has(g.key))
+      .map(g => ({ key: g.key, label: g.variants[0].raw, count: g.variants[0].count }))
+      .sort((a, b) => b.count - a.count);
+  }, [categoryGroups, officialKeys]);
+
+  const emptyCategoryProducts = useMemo(() => products.filter(p => !String(p.category || '').trim()), [products]);
+
+  const supplierGroups = useMemo(() => groupSimilarValues(products.map(p => p.supplier)), [products]);
+  const duplicateSupplierGroups = useMemo(() => supplierGroups.filter(g => g.variants.length > 1), [supplierGroups]);
+
+  const totalIssues = duplicateCategoryGroups.length + duplicateSupplierGroups.length + unofficialCategories.length + (emptyCategoryProducts.length > 0 ? 1 : 0);
+
+  const getCatCanonical = (g) => catCanonical[g.key] ?? g.variants[0].raw;
+  const getSupCanonical = (g) => supCanonical[g.key] ?? g.variants[0].raw;
+
+  const mergeCategoryGroup = (g) => {
+    const canonical = getCatCanonical(g);
+    const key = g.key;
+
+    setProducts(products.map(p => normalizeKey(p.category) === key ? { ...p, category: canonical } : p));
+
+    let dedupedCats = categories.map(c => normalizeKey(c) === key ? canonical : c);
+    if (!dedupedCats.some(c => normalizeKey(c) === key)) dedupedCats.push(canonical);
+    setCategories([...new Set(dedupedCats)]);
+
+    const matchingMargins = categoryMargins.filter(m => normalizeKey(m.category) === key);
+    if (matchingMargins.length > 0) {
+      const mergedMargin = (matchingMargins.find(m => m.category === canonical) || matchingMargins[0]).margin;
+      setCategoryMargins([...categoryMargins.filter(m => normalizeKey(m.category) !== key), { category: canonical, margin: mergedMargin }]);
+    }
+
+    const matchingAdvances = loanAdvances.filter(a => normalizeKey(a.category) === key);
+    if (matchingAdvances.length > 0) {
+      const mergedAdvance = matchingAdvances.find(a => a.category === canonical) || matchingAdvances[0];
+      setLoanAdvances([...loanAdvances.filter(a => normalizeKey(a.category) !== key), { ...mergedAdvance, category: canonical }]);
+    }
+
+    setTaxRules(taxRules.map(r => normalizeKey(r.category) === key ? { ...r, category: canonical } : r));
+  };
+
+  const mergeSupplierGroup = (g) => {
+    const canonical = getSupCanonical(g);
+    setProducts(products.map(p => normalizeKey(p.supplier) === g.key ? { ...p, supplier: canonical } : p));
+  };
+
+  const addUnofficialAsCategory = (item) => {
+    setCategories([...categories, item.label]);
+  };
+
+  const reassignUnofficialCategory = (item) => {
+    const target = reassignTarget[item.key];
+    if (!target) return;
+    setProducts(products.map(p => normalizeKey(p.category) === item.key ? { ...p, category: target } : p));
+  };
+
+  const applyBulkCategoryAssign = () => {
+    if (!bulkAssignCategory || emptyCategoryProducts.length === 0) return;
+    const emptyIds = new Set(emptyCategoryProducts.map(p => p.id));
+    setProducts(products.map(p => emptyIds.has(p.id) ? { ...p, category: bulkAssignCategory } : p));
+    setBulkAssignCategory('');
+  };
+
+  if (totalIssues === 0) {
+    return (
+      <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm py-32 text-center text-stone-400 flex flex-col items-center">
+        <CheckCircle2 className="w-12 h-12 mb-4 text-emerald-400" />
+        <p className="font-bold text-xs uppercase tracking-widest">No se detectaron inconsistencias</p>
+        <p className="text-[10px] uppercase tracking-widest mt-2 text-stone-400">Categorías y proveedores están limpios</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {duplicateCategoryGroups.length > 0 && (
+        <div className="space-y-4">
+          <h4 className="text-xs font-black uppercase tracking-widest text-stone-800 flex items-center gap-2"><Tags className="w-4 h-4 text-[#b5a898]" /> Categorías Duplicadas ({duplicateCategoryGroups.length})</h4>
+          {duplicateCategoryGroups.map(g => (
+            <div key={g.key} className="bg-white rounded-2xl border border-rose-200 shadow-sm p-6 flex flex-wrap items-center gap-4">
+              <div className="flex-1 flex flex-wrap gap-2 min-w-[200px]">
+                {g.variants.map(v => (
+                  <label key={v.raw} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-xs font-bold transition ${getCatCanonical(g) === v.raw ? 'bg-black text-white border-black' : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'}`}>
+                    <input type="radio" className="hidden" checked={getCatCanonical(g) === v.raw} onChange={() => setCatCanonical({ ...catCanonical, [g.key]: v.raw })} />
+                    "{v.raw}" <span className="text-[9px] opacity-70 uppercase">({v.count} prod.)</span>
+                  </label>
+                ))}
+              </div>
+              <button onClick={() => mergeCategoryGroup(g)} className="bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-sm hover:bg-rose-700 transition shrink-0">
+                Unificar en "{getCatCanonical(g)}"
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {unofficialCategories.length > 0 && (
+        <div className="space-y-4">
+          <h4 className="text-xs font-black uppercase tracking-widest text-stone-800 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-[#b5a898]" /> Categorías de Productos No Oficiales ({unofficialCategories.length})</h4>
+          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest -mt-2">Productos con una categoría que no está en la lista de Categorías de Inventario (ej. quedó así de una importación).</p>
+          {unofficialCategories.map(item => (
+            <div key={item.key} className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 flex flex-wrap items-center gap-4">
+              <div className="flex-1 min-w-[160px]">
+                <span className="font-bold text-sm text-stone-800">"{item.label}"</span>
+                <span className="block text-[9px] font-black uppercase text-stone-400 tracking-widest mt-1">{item.count} producto{item.count === 1 ? '' : 's'}</span>
+              </div>
+              <select className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none" value={reassignTarget[item.key] || ''} onChange={e => setReassignTarget({ ...reassignTarget, [item.key]: e.target.value })}>
+                <option value="">Reasignar a...</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button onClick={() => reassignUnofficialCategory(item)} disabled={!reassignTarget[item.key]} className="bg-stone-800 text-white px-4 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-black transition disabled:opacity-30 disabled:cursor-not-allowed">Reasignar</button>
+              <button onClick={() => addUnofficialAsCategory(item)} className="bg-white border border-stone-200 text-stone-700 px-4 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-stone-50 transition">Agregar como Oficial</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {emptyCategoryProducts.length > 0 && (
+        <div className="space-y-4">
+          <h4 className="text-xs font-black uppercase tracking-widest text-stone-800 flex items-center gap-2"><Package className="w-4 h-4 text-[#b5a898]" /> Productos Sin Categoría ({emptyCategoryProducts.length})</h4>
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 space-y-4">
+            <div className="max-h-40 overflow-y-auto space-y-2 custom-scrollbar pr-2">
+              {emptyCategoryProducts.map(p => (
+                <div key={p.id} className="flex justify-between items-center text-xs font-bold text-stone-600 bg-stone-50 px-4 py-2 rounded-lg">
+                  <span>{p.name}</span><span className="text-[9px] text-stone-400 uppercase">{p.sku}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 border-t border-stone-100 pt-4">
+              <select className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none" value={bulkAssignCategory} onChange={e => setBulkAssignCategory(e.target.value)}>
+                <option value="">Asignar categoría...</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button onClick={applyBulkCategoryAssign} disabled={!bulkAssignCategory} className="bg-[#b5a898] text-white px-5 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-sm hover:bg-[#a39686] transition disabled:opacity-30 disabled:cursor-not-allowed">
+                Asignar a los {emptyCategoryProducts.length} productos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {duplicateSupplierGroups.length > 0 && (
+        <div className="space-y-4">
+          <h4 className="text-xs font-black uppercase tracking-widest text-stone-800 flex items-center gap-2"><Boxes className="w-4 h-4 text-[#b5a898]" /> Proveedores Duplicados ({duplicateSupplierGroups.length})</h4>
+          {duplicateSupplierGroups.map(g => (
+            <div key={g.key} className="bg-white rounded-2xl border border-rose-200 shadow-sm p-6 flex flex-wrap items-center gap-4">
+              <div className="flex-1 flex flex-wrap gap-2 min-w-[200px]">
+                {g.variants.map(v => (
+                  <label key={v.raw} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-xs font-bold transition ${getSupCanonical(g) === v.raw ? 'bg-black text-white border-black' : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'}`}>
+                    <input type="radio" className="hidden" checked={getSupCanonical(g) === v.raw} onChange={() => setSupCanonical({ ...supCanonical, [g.key]: v.raw })} />
+                    "{v.raw}" <span className="text-[9px] opacity-70 uppercase">({v.count} prod.)</span>
+                  </label>
+                ))}
+              </div>
+              <button onClick={() => mergeSupplierGroup(g)} className="bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-sm hover:bg-rose-700 transition shrink-0">
+                Unificar en "{getSupCanonical(g)}"
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VariablesView({ categories, setCategories, expenseCategories, setExpenseCategories, paymentMethods, setPaymentMethods, taxRules, setTaxRules, paymentBonuses, setPaymentBonuses, categoryMargins, setCategoryMargins, taxConcepts, setTaxConcepts, accounts, setAccounts, loanAdvances, setLoanAdvances, products, setProducts }) {
   const [activeTab, setActiveTab] = useState('categories');
+
+  const cleanupIssueCount = useMemo(() => {
+    const catGroups = groupSimilarValues([...categories, ...products.map(p => p.category)]);
+    const dupCat = catGroups.filter(g => g.variants.length > 1).length;
+    const officialKeys = new Set(categories.map(c => normalizeKey(c)));
+    const unofficial = catGroups.filter(g => g.variants.length === 1 && !officialKeys.has(g.key)).length;
+    const emptyCat = products.some(p => !String(p.category || '').trim()) ? 1 : 0;
+    const dupSup = groupSimilarValues(products.map(p => p.supplier)).filter(g => g.variants.length > 1).length;
+    return dupCat + unofficial + emptyCat + dupSup;
+  }, [categories, products]);
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="flex bg-white p-1.5 rounded-2xl border border-stone-200 shadow-sm w-fit overflow-x-auto custom-scrollbar">
         <button onClick={() => setActiveTab('categories')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'categories' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Tags className="w-3.5 h-3.5" /> Categorías</button>
+        <button onClick={() => setActiveTab('cleanup')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'cleanup' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}>
+          <AlertCircle className="w-3.5 h-3.5" /> Limpieza de Datos
+          {cleanupIssueCount > 0 && <span className="bg-rose-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">{cleanupIssueCount}</span>}
+        </button>
         <button onClick={() => setActiveTab('margins')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'margins' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Percent className="w-3.5 h-3.5" /> Márgenes</button>
         <button onClick={() => setActiveTab('accounts')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'accounts' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><Landmark className="w-3.5 h-3.5" /> Cuentas/Cajas</button>
         <button onClick={() => setActiveTab('payments')} className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'payments' ? 'bg-black text-white shadow-md' : 'text-stone-500 hover:bg-stone-50'}`}><CreditCard className="w-3.5 h-3.5" /> Medios Pago</button>
@@ -4231,6 +4463,7 @@ function VariablesView({ categories, setCategories, expenseCategories, setExpens
       </div>
       <div className="bg-[#f4f2f0] p-8 md:p-12 rounded-[3rem] border border-stone-200 shadow-inner min-h-[500px]">
         {activeTab === 'categories' && <VariableManager title="Categorías de Inventario" list={categories} setList={setCategories} icon={Tags} placeholder="Ej: Escritorios..." />}
+        {activeTab === 'cleanup' && <DataCleanupView products={products} setProducts={setProducts} categories={categories} setCategories={setCategories} categoryMargins={categoryMargins} setCategoryMargins={setCategoryMargins} loanAdvances={loanAdvances} setLoanAdvances={setLoanAdvances} taxRules={taxRules} setTaxRules={setTaxRules} />}
         {activeTab === 'margins' && <MarginManager categories={categories} categoryMargins={categoryMargins} setCategoryMargins={setCategoryMargins} />}
         {activeTab === 'accounts' && <AccountManager accounts={accounts} setAccounts={setAccounts} />}
         {activeTab === 'payments' && <PaymentMethodManager paymentMethods={paymentMethods} setPaymentMethods={setPaymentMethods} accounts={accounts} />}
@@ -4423,6 +4656,7 @@ export default function App() {
               taxConcepts={taxConcepts} setTaxConcepts={setTaxConcepts}
               accounts={accounts} setAccounts={setAccounts}
               loanAdvances={loanAdvances} setLoanAdvances={setLoanAdvances}
+              products={products} setProducts={setProducts}
             />
           )}
         </div>
