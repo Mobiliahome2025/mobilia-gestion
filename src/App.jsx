@@ -3973,34 +3973,23 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
     showCashPrice: true, cashPriceSize: 14, cashPriceBold: true,
   });
   
-  // Config para modo cuadro (diferente)
-  const boardConfig = {
+  // Config para modo etiquetas individuales (10x6.5cm)
+  const [boardConfig, setBoardConfig] = useState({
     width: 100, height: 65, // 10 x 6.5 cm
-    columns: 1, gap: 0,
-    font: 'font-sans', align: 'text-left',
-    showHeader: true, headerSize: 9, headerBold: true,
-    itemsPerLabel: 5
-  };
+    columns: 1, gap: 0, rows: 2, // 2 etiquetas por página (100x150mm)
+    font: 'font-sans',
+    showName: true, nameSize: 11, nameBold: true,
+    showDimensions: true, dimensionsSize: 8, dimensionsBold: false,
+    showListPrice: true, listPriceSize: 10, listPriceBold: true,
+    showCashPrice: true, cashPriceSize: 14, cashPriceBold: true,
+  });
 
-  // Funciones para modo de cuadro
+  // Funciones para modo etiquetas individuales
   const addProductToBoard = (prod) => {
-    if (!currentBoardGroup.find(i => i.id === prod.id)) {
-      setCurrentBoardGroup([...currentBoardGroup, { ...prod, boardQty: 1 }]);
+    if (!boardGroups.find(g => g.productId === prod.id)) {
+      setBoardGroups([...boardGroups, { id: `IND-${Date.now()}-${Math.random()}`, productId: prod.id, product: prod, qty: 1 }]);
     }
     setSearch('');
-  };
-
-  const removeProductFromBoard = (id) => {
-    setCurrentBoardGroup(currentBoardGroup.filter(i => i.id !== id));
-  };
-
-  const createBoardGroup = () => {
-    if (currentBoardGroup.length === 0) {
-      alert("Agregá al menos un producto al cuadro.");
-      return;
-    }
-    setBoardGroups([...boardGroups, { id: `BG-${Date.now()}`, items: [...currentBoardGroup], qty: 1 }]);
-    setCurrentBoardGroup([]);
   };
 
   const removeBoardGroup = (id) => {
@@ -4069,8 +4058,12 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
   };
 
   const handlePrint = () => {
-    if (selectedItems.length === 0) {
-      alert("Añade al menos un producto para imprimir.");
+    if (labelMode === 'price' && selectedItems.length === 0) {
+      alert("Añade al menos un producto para imprimir etiquetas de precios.");
+      return;
+    }
+    if (labelMode === 'board' && boardGroups.length === 0) {
+      alert("Añade al menos un producto para imprimir etiquetas individuales.");
       return;
     }
     window.print();
@@ -4197,12 +4190,11 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
         </div>
         )}
 
-        {/* PANEL IZQUIERDO MODO CUADRO */}
         {labelMode === 'board' && (
         <div className="xl:col-span-5 flex flex-col gap-6">
-          {/* Selección de productos para cuadro */}
+          {/* Selección de productos para etiquetas individuales */}
           <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm">
-            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><CheckSquare className="w-4 h-4 text-[#b5a898]" /> 1. Productos en Cuadro</h4>
+            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><CheckSquare className="w-4 h-4 text-[#b5a898]" /> 1. Seleccionar Productos</h4>
             
             <div className="space-y-4 mb-8">
                <div className="space-y-1 relative">
@@ -4223,50 +4215,29 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
                </div>
             </div>
 
-            <div className="border border-stone-200 rounded-xl overflow-hidden bg-stone-50 min-h-[200px] flex flex-col">
-               <div className="bg-stone-100 p-3 border-b border-stone-200 text-[10px] font-bold text-stone-500 uppercase tracking-widest">
-                  Artículos en Cuadro Actual ({currentBoardGroup.length})
+            <div className="border border-stone-200 rounded-xl overflow-hidden bg-stone-50 h-[300px] flex flex-col">
+               <div className="bg-stone-100 p-3 border-b border-stone-200 flex justify-between items-center text-[10px] font-bold text-stone-500 uppercase tracking-widest shrink-0">
+                  <span>Etiquetas ({boardGroups.length})</span><span>Copias</span>
                </div>
-               <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                  {currentBoardGroup.map(item => (
-                    <div key={item.id} className="bg-white border border-stone-100 p-2 rounded-lg flex justify-between items-center text-sm">
-                       <span className="font-bold text-stone-700 flex-1 truncate">{item.name}</span>
-                       <button onClick={() => removeProductFromBoard(item.id)} className="text-stone-300 hover:text-red-500 ml-2"><Trash2 className="w-4 h-4" /></button>
+               <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                  {boardGroups.map(item => (
+                    <div key={item.id} className="bg-white border border-stone-100 p-3 rounded-lg flex justify-between items-center shadow-sm">
+                       <div className="flex-1 truncate pr-2">
+                         <p className="text-xs font-bold text-stone-800 truncate">{item.product.name}</p>
+                         <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{formatCurrency(item.product.price)}</p>
+                       </div>
+                       <div className="flex items-center gap-3 shrink-0">
+                         <div className="flex items-center bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
+                            <button onClick={() => updateBoardGroupQty(item.id, -1)} className="px-2.5 py-1 text-stone-500 hover:bg-stone-200 hover:text-black font-black transition">-</button>
+                            <span className="w-10 py-1 text-center text-xs font-black">{item.qty || 1}</span>
+                            <button onClick={() => updateBoardGroupQty(item.id, 1)} className="px-2.5 py-1 text-stone-500 hover:bg-stone-200 hover:text-black font-black transition">+</button>
+                         </div>
+                         <button onClick={() => removeBoardGroup(item.id)} className="text-stone-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                       </div>
                     </div>
                   ))}
-                  {currentBoardGroup.length === 0 && <div className="h-full flex items-center justify-center text-stone-400 text-xs font-bold uppercase tracking-widest">Sin productos</div>}
+                  {boardGroups.length === 0 && <div className="h-full flex items-center justify-center text-stone-400 text-xs font-bold uppercase tracking-widest">Sin productos</div>}
                </div>
-            </div>
-
-            <button onClick={createBoardGroup} className="w-full mt-4 bg-black text-white px-4 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-stone-800 transition">+ Crear Cuadro Etiqueta</button>
-          </div>
-
-          {/* Cuadros creados */}
-          <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm">
-            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6">Cuadros Creados ({boardGroups.length})</h4>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto">
-               {boardGroups.map(group => (
-                  <div key={group.id} className="bg-stone-50 border border-stone-200 p-4 rounded-xl flex justify-between items-start">
-                     <div className="flex-1">
-                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest mb-2">{group.items.length} productos</p>
-                        <div className="space-y-1">
-                           {group.items.slice(0, 3).map((it, idx) => (
-                              <p key={idx} className="text-xs font-bold text-stone-700 truncate">• {it.name}</p>
-                           ))}
-                           {group.items.length > 3 && <p className="text-[9px] text-stone-400 font-bold">+ {group.items.length - 3} más</p>}
-                        </div>
-                     </div>
-                     <div className="flex items-center gap-2 ml-3">
-                        <div className="flex items-center bg-stone-50 border border-stone-200 rounded-lg">
-                           <button onClick={() => updateBoardGroupQty(group.id, -1)} className="px-2 py-1 text-stone-500 hover:bg-stone-200">-</button>
-                           <span className="px-3 text-xs font-black">{group.qty || 1}</span>
-                           <button onClick={() => updateBoardGroupQty(group.id, 1)} className="px-2 py-1 text-stone-500 hover:bg-stone-200">+</button>
-                        </div>
-                        <button onClick={() => removeBoardGroup(group.id)} className="text-stone-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                     </div>
-                  </div>
-               ))}
-               {boardGroups.length === 0 && <div className="text-center py-6 text-stone-400 text-xs font-bold uppercase">Sin cuadros creados</div>}
             </div>
           </div>
         </div>
@@ -4389,39 +4360,85 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
         </div>
         )}
 
-        {/* PANEL DERECHO MODO CUADRO */}
+        {/* PANEL DERECHO MODO ETIQUETAS INDIVIDUALES */}
         {labelMode === 'board' && (
         <div className="xl:col-span-7 flex flex-col gap-6">
           <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm flex-1">
-            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><FileText className="w-4 h-4 text-[#b5a898]" /> 2. Vista Previa Cuadro</h4>
+            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><Type className="w-4 h-4 text-[#b5a898]" /> 2. Formato y Opciones</h4>
             
-            <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 mb-6">
-               <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3 border-b border-stone-200 pb-2">Tamaño Fijo</p>
-               <p className="text-sm font-black text-stone-800">100mm x 65mm (10cm x 6.5cm)</p>
-               <p className="text-[9px] text-stone-500 font-bold mt-2">Orientación: Horizontal</p>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+               <div className="space-y-4">
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                    <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3 border-b border-stone-200 pb-2">Tamaño Fijo</p>
+                    <p className="text-sm font-black text-stone-800">100mm x 65mm</p>
+                    <p className="text-[9px] text-stone-500 font-bold mt-1">(2 etiquetas por página A4 vertical)</p>
+                  </div>
 
-            {/* VISTA PREVIA CUADRO */}
-            <div className="mb-8 flex flex-col items-center justify-center p-6 bg-[#e8e6e1] rounded-[1.5rem] border-2 border-dashed border-stone-300 relative overflow-x-auto" style={{ backgroundImage: 'radial-gradient(#d6d3d1 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
-               <span className="absolute top-3 right-4 text-[9px] font-black text-stone-400 uppercase tracking-widest bg-white/50 px-2 py-1 rounded backdrop-blur-sm z-10">Vista Previa Cuadro</span>
-               
-               <div className="bg-white shadow-xl rounded border border-stone-300 text-left text-[9px] font-bold leading-tight" style={{ width: '100mm', height: '65mm', padding: '3mm', overflow: 'hidden' }}>
-                  <p className="text-stone-900 font-black text-[8px] mb-1 border-b border-stone-200 pb-1">PRODUCTOS DISPONIBLES</p>
-                  <div className="text-[7px] text-stone-700 space-y-0.5">
-                     {boardGroups[0]?.items?.slice(0, 5).map((item, idx) => (
-                        <div key={idx} className="flex justify-between gap-1">
-                           <span>• {item.name.substring(0, 18)}</span>
-                           <span className="text-emerald-600 font-black shrink-0">{formatCurrency(item.price)}</span>
-                        </div>
-                     )) || (
-                        <p className="italic text-stone-400">Crea un cuadro para ver vista previa</p>
-                     )}
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                    <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3 border-b border-stone-200 pb-2">Tipografía</p>
+                    <select className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-xs font-bold outline-none" value={boardConfig.font} onChange={e => setBoardConfig({...boardConfig, font: e.target.value})}>
+                       <option value="font-sans">Sans-Serif (Moderna)</option>
+                       <option value="font-serif">Serif (Clásica)</option>
+                       <option value="font-mono">Monoespaciada</option>
+                    </select>
+                  </div>
+               </div>
+
+               <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-3">
+                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-1 border-b border-stone-200 pb-2">Contenido a Mostrar</p>
+                  
+                  {/* Config Name */}
+                  <div className="flex items-center justify-between gap-3">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-[#b5a898] w-4 h-4" checked={boardConfig.showName} onChange={e => setBoardConfig({...boardConfig, showName: e.target.checked})} /><span className="text-xs font-bold">Nombre</span></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={boardConfig.nameSize} onChange={e => setBoardConfig({...boardConfig, nameSize: e.target.value})} disabled={!boardConfig.showName} />
+                       <button onClick={() => setBoardConfig({...boardConfig, nameBold: !boardConfig.nameBold})} className={`px-2 py-0.5 text-xs rounded-md border ${boardConfig.nameBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!boardConfig.showName}>B</button>
+                     </div>
+                  </div>
+
+                  {/* Config Dimensions */}
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-[#b5a898] w-4 h-4" checked={boardConfig.showDimensions} onChange={e => setBoardConfig({...boardConfig, showDimensions: e.target.checked})} /><span className="text-xs font-bold">Medidas</span></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={boardConfig.dimensionsSize} onChange={e => setBoardConfig({...boardConfig, dimensionsSize: e.target.value})} disabled={!boardConfig.showDimensions} />
+                       <button onClick={() => setBoardConfig({...boardConfig, dimensionsBold: !boardConfig.dimensionsBold})} className={`px-2 py-0.5 text-xs rounded-md border ${boardConfig.dimensionsBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!boardConfig.showDimensions}>B</button>
+                     </div>
+                  </div>
+
+                  {/* Config List Price */}
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-[#b5a898] w-4 h-4" checked={boardConfig.showListPrice} onChange={e => setBoardConfig({...boardConfig, showListPrice: e.target.checked})} /><span className="text-xs font-bold">Precio Lista</span></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={boardConfig.listPriceSize} onChange={e => setBoardConfig({...boardConfig, listPriceSize: e.target.value})} disabled={!boardConfig.showListPrice} />
+                       <button onClick={() => setBoardConfig({...boardConfig, listPriceBold: !boardConfig.listPriceBold})} className={`px-2 py-0.5 text-xs rounded-md border ${boardConfig.listPriceBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!boardConfig.showListPrice}>B</button>
+                     </div>
+                  </div>
+
+                  {/* Config Cash Price */}
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-stone-200">
+                     <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" className="accent-emerald-600 w-4 h-4" checked={boardConfig.showCashPrice} onChange={e => setBoardConfig({...boardConfig, showCashPrice: e.target.checked})} /><span className="text-xs font-bold text-emerald-700">Precio Efectivo (-{cashBonus}%)</span></label>
+                     <div className="flex gap-2">
+                       <input type="number" title="Tamaño px" className="w-12 text-center text-xs font-bold border rounded-md" value={boardConfig.cashPriceSize} onChange={e => setBoardConfig({...boardConfig, cashPriceSize: e.target.value})} disabled={!boardConfig.showCashPrice} />
+                       <button onClick={() => setBoardConfig({...boardConfig, cashPriceBold: !boardConfig.cashPriceBold})} className={`px-2 py-0.5 text-xs rounded-md border ${boardConfig.cashPriceBold ? 'bg-stone-800 text-white font-black' : 'bg-white text-stone-400 font-bold'}`} disabled={!boardConfig.showCashPrice}>B</button>
+                     </div>
                   </div>
                </div>
             </div>
 
+            {/* VISTA PREVIA */}
+            <div className="mb-8 flex flex-col items-center justify-center p-6 bg-[#e8e6e1] rounded-[1.5rem] border-2 border-dashed border-stone-300 relative overflow-x-auto" style={{ backgroundImage: 'radial-gradient(#d6d3d1 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
+               <span className="absolute top-3 right-4 text-[9px] font-black text-stone-400 uppercase tracking-widest bg-white/50 px-2 py-1 rounded backdrop-blur-sm z-10">Vista Previa</span>
+               
+               <div className={`bg-white shadow-xl flex flex-col justify-center box-border p-2 leading-tight ${boardConfig.font} text-black shrink-0`} style={{ width: '100mm', height: '65mm' }}>
+                  {boardConfig.showName && <p style={{ fontSize: `${boardConfig.nameSize}px`, fontWeight: boardConfig.nameBold ? '900' : 'normal' }}>Sofá Múnich 3 Cuerpos</p>}
+                  {boardConfig.showDimensions && <p style={{ fontSize: `${boardConfig.dimensionsSize}px`, fontWeight: boardConfig.dimensionsBold ? '900' : 'normal', marginTop: '3px' }}>210x90x85 cm</p>}
+                  {boardConfig.showListPrice && <p style={{ fontSize: `${boardConfig.listPriceSize}px`, fontWeight: boardConfig.listPriceBold ? '900' : 'normal', marginTop: '4px' }}>Lista: $ 100.000,00</p>}
+                  {boardConfig.showCashPrice && <p style={{ fontSize: `${boardConfig.cashPriceSize}px`, fontWeight: boardConfig.cashPriceBold ? '900' : 'normal', marginTop: '2px', color: '#16a34a' }}>Efectivo: $ {(100000 * (1 - (cashBonus / 100))).toLocaleString('es-AR')}</p>}
+               </div>
+            </div>
+
             <button onClick={handlePrint} className="w-full bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] text-[11px] shadow-lg hover:bg-[#a39686] transition active:scale-95 flex items-center justify-center gap-3">
-               <Printer className="w-5 h-5" /> Imprimir {totalLabels} Etiquetas de Cuadro
+               <Printer className="w-5 h-5" /> Imprimir {totalLabels} Etiquetas
             </button>
           </div>
         </div>
@@ -4447,24 +4464,29 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
       </div>
       )}
 
-      {/* ÁREA DE IMPRESIÓN - MODO CUADRO */}
+      {/* ÁREA DE IMPRESIÓN - MODO ETIQUETAS INDIVIDUALES */}
       {labelMode === 'board' && (
       <div id="print-area" className="hidden print:block bg-white text-black">
-         {boardGroupsToPrint.map((group, groupIdx) => (
-            <div key={groupIdx} className="flex" style={{ breakAfter: 'page' }}>
-               <div className="box-border flex flex-col text-left font-sans text-black bg-white p-2 leading-tight" style={{ width: '100mm', height: '65mm' }}>
-                  <p className="text-stone-900 font-black text-[8px] mb-1 border-b border-stone-200 pb-1">PRODUCTOS DISPONIBLES</p>
-                  <div className="text-[7px] text-stone-700 space-y-0.5">
-                     {group.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between gap-2">
-                           <span className="flex-1">• {item.name}</span>
-                           <span className="text-emerald-600 font-black whitespace-nowrap">{formatCurrency(item.price)}</span>
-                        </div>
-                     ))}
-                  </div>
-               </div>
-            </div>
-         ))}
+         {(() => {
+            // Generar páginas de 2 etiquetas
+            const pages = [];
+            for (let i = 0; i < boardGroupsToPrint.length; i += 2) {
+              pages.push(boardGroupsToPrint.slice(i, i + 2));
+            }
+            
+            return pages.map((page, pageIdx) => (
+              <div key={pageIdx} style={{ breakAfter: pageIdx < pages.length - 1 ? 'page' : 'auto' }}>
+                 {page.map((item, idx) => (
+                   <div key={`${pageIdx}-${idx}`} className={`box-border flex flex-col justify-center overflow-hidden p-2 leading-tight ${boardConfig.font} text-black bg-white`} style={{ width: '100mm', height: '65mm' }}>
+                      {boardConfig.showName && <p style={{ fontSize: `${boardConfig.nameSize}px`, fontWeight: boardConfig.nameBold ? '900' : 'normal' }}>{item.product.name}</p>}
+                      {boardConfig.showDimensions && <p style={{ fontSize: `${boardConfig.dimensionsSize}px`, fontWeight: boardConfig.dimensionsBold ? '900' : 'normal', marginTop: '2px' }}>{item.product.dimensions}</p>}
+                      {boardConfig.showListPrice && <p style={{ fontSize: `${boardConfig.listPriceSize}px`, fontWeight: boardConfig.listPriceBold ? '900' : 'normal', marginTop: '3px' }}>Lista: {formatCurrency(item.product.price)}</p>}
+                      {boardConfig.showCashPrice && <p style={{ fontSize: `${boardConfig.cashPriceSize}px`, fontWeight: boardConfig.cashPriceBold ? '900' : 'normal', marginTop: '2px', color: '#16a34a' }}>Efectivo: {formatCurrency(item.product.price * (1 - (cashBonus / 100)))}</p>}
+                   </div>
+                 ))}
+              </div>
+            ));
+         })()}
       </div>
       )}
 
