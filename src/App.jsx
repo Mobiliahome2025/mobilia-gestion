@@ -1071,7 +1071,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
           data[monthIndex].in += p.amount;
 
           if (subtotalCart > 0 && paymentBonuses && taxRules) {
-              const bonus = paymentBonuses.find(b => b.method === p.method)?.value || 0;
+              const bonus = p.bonus !== undefined ? p.bonus : (paymentBonuses.find(b => b.method === p.method)?.value || 0);
               const amountCoveredBase = p.amount / (1 - (bonus / 100));
               const proportionOfSale = amountCoveredBase / subtotalCart;
               const descuentos = amountCoveredBase - p.amount;
@@ -1313,7 +1313,7 @@ function PnLView({ sales, purchases, paymentBonuses, taxRules }) {
       if (paymentsInPeriod.length === 0) return;
 
       paymentsInPeriod.forEach(pay => {
-        const bonus = sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === pay.method)?.value || 0);
+        const bonus = pay.bonus !== undefined ? pay.bonus : (sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === pay.method)?.value || 0));
         const amountCoveredBase = pay.amount / (1 - (bonus / 100));
         
         // P&L cost scaling logic
@@ -1525,7 +1525,7 @@ function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm, produc
       const totalPaymentsVolume = sale.payments ? sale.payments.reduce((acc, p) => acc + p.amount, 0) : 0;
       
       const amountCoveredBase = sale.payments?.reduce((acc, p) => {
-        const bonus = sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0);
+        const bonus = p.bonus !== undefined ? p.bonus : (sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0));
         return acc + (p.amount / (1 - (bonus / 100)));
       }, 0) || 0;
 
@@ -2941,7 +2941,7 @@ function SaleDetailModal({ sale, onClose, paymentMethods, paymentBonuses, onUpda
   const subtotal = sale.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
   
   const amountCoveredBase = sale.payments?.reduce((acc, p) => {
-    const bonus = sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0);
+    const bonus = p.bonus !== undefined ? p.bonus : (sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0));
     return acc + (p.amount / (1 - (bonus / 100)));
   }, 0) || 0;
   
@@ -2969,7 +2969,7 @@ function SaleDetailModal({ sale, onClose, paymentMethods, paymentBonuses, onUpda
     
     const newPayment = {
       id: Date.now() + Math.random(),
-      method: tempMethod, amount: a, date: newPaymentDate
+      method: tempMethod, amount: a, date: newPaymentDate, bonus: currentBonusVal
     };
 
     const updatedSale = { ...sale, payments: [...(sale.payments || []), newPayment] };
@@ -3105,7 +3105,7 @@ function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loa
 
   const subtotalCart = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
   const amountCoveredBase = payments.reduce((acc, p) => {
-    const bonus = saleMode === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0);
+    const bonus = p.bonus !== undefined ? p.bonus : (saleMode === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0));
     return acc + (p.amount / (1 - (bonus / 100)));
   }, 0);
   
@@ -3147,7 +3147,8 @@ function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loa
   const addPayment = () => {
     const a = parseFloat(tempPaymentAmount);
     if (!tempPaymentMethod || isNaN(a) || a <= 0) return;
-    setPayments([...payments, { id: Date.now() + Math.random(), method: tempPaymentMethod, amount: a, date: saleDate, note: saleMode === 'loan' ? 'Anticipo Préstamo' : '' }]);
+    const bonus = saleMode === 'loan' ? 0 : (paymentBonuses.find(b => b.method === tempPaymentMethod)?.value || 0);
+    setPayments([...payments, { id: Date.now() + Math.random(), method: tempPaymentMethod, amount: a, date: saleDate, bonus: bonus, note: saleMode === 'loan' ? 'Anticipo Préstamo' : '' }]);
     setTempPaymentMethod(''); setTempPaymentAmount('');
   };
 
@@ -3271,7 +3272,7 @@ function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loa
           </div>
           <div className="space-y-3">
             {payments.map(pay => {
-               const b = paymentBonuses.find(x => x.method === pay.method)?.value || 0;
+               const b = pay.bonus !== undefined ? pay.bonus : (paymentBonuses.find(x => x.method === pay.method)?.value || 0);
                return (
                 <div key={pay.id} className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
                   <div className="flex items-center gap-3"><CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -3437,7 +3438,7 @@ function SalesView({ sales, setSales, loans, setLoans, products, setProducts, pa
         <div className="grid grid-cols-1 gap-4">
           {filteredSales.map(sale => {
             const subtotal = sale.items.reduce((acc, i) => acc + (i.price * i.qty), 0);
-            const amountCoveredBase = sale.payments?.reduce((acc, p) => acc + (p.amount / (1 - (sale.type === 'loan' ? 0 : ((paymentBonuses.find(b => b.method === p.method)?.value || 0) / 100)))), 0) || 0;
+            const amountCoveredBase = sale.payments?.reduce((acc, p) => acc + (p.amount / (1 - (sale.type === 'loan' ? 0 : ((p.bonus !== undefined ? p.bonus : paymentBonuses.find(b => b.method === p.method)?.value || 0) / 100)))), 0) || 0;
             const balance = subtotal - amountCoveredBase;
 
             return (
@@ -3952,16 +3953,19 @@ function TaxManager({ taxRules, setTaxRules, categories, paymentMethods, taxConc
 }
 
 function LabelPrinterView({ products, categories, paymentBonuses }) {
+  const [labelMode, setLabelMode] = useState('price'); // 'price' | 'board'
   const [selectedItems, setSelectedItems] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [boardGroups, setBoardGroups] = useState([]); // Para etiquetas de cuadro
+  const [currentBoardGroup, setCurrentBoardGroup] = useState([]);
   
   // Obtenemos el descuento de Efectivo configurado en el ERP (Si no existe, es 0)
   const cashBonus = paymentBonuses?.find(b => b.method.toLowerCase().includes('efectivo'))?.value || 0;
   
   const [config, setConfig] = useState({
-    width: 50, height: 30, // mm (Dimensiones de 1 sola etiqueta)
-    columns: 1, gap: 2,    // Configuración de Bobina (Bandas y separación)
+    width: 50, height: 30,
+    columns: 1, gap: 2,
     font: 'font-sans', align: 'text-center',
     showName: true, nameSize: 11, nameBold: true,
     showDimensions: true, dimensionsSize: 9, dimensionsBold: false,
@@ -3969,6 +3973,61 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
     showListPrice: true, listPriceSize: 9, listPriceBold: false,
     showCashPrice: true, cashPriceSize: 14, cashPriceBold: true,
   });
+  
+  // Config para modo cuadro (diferente)
+  const boardConfig = {
+    width: 100, height: 65, // 10 x 6.5 cm
+    columns: 1, gap: 0,
+    font: 'font-sans', align: 'text-left',
+    showHeader: true, headerSize: 9, headerBold: true,
+    itemsPerLabel: 5
+  };
+
+  // Funciones para modo de cuadro
+  const addProductToBoard = (prod) => {
+    if (!currentBoardGroup.find(i => i.id === prod.id)) {
+      setCurrentBoardGroup([...currentBoardGroup, { ...prod, boardQty: 1 }]);
+    }
+    setSearch('');
+  };
+
+  const removeProductFromBoard = (id) => {
+    setCurrentBoardGroup(currentBoardGroup.filter(i => i.id !== id));
+  };
+
+  const createBoardGroup = () => {
+    if (currentBoardGroup.length === 0) {
+      alert("Agregá al menos un producto al cuadro.");
+      return;
+    }
+    setBoardGroups([...boardGroups, { id: `BG-${Date.now()}`, items: [...currentBoardGroup], qty: 1 }]);
+    setCurrentBoardGroup([]);
+  };
+
+  const removeBoardGroup = (id) => {
+    setBoardGroups(boardGroups.filter(g => g.id !== id));
+  };
+
+  const updateBoardGroupQty = (id, delta) => {
+    setBoardGroups(boardGroups.map(g => {
+      if (g.id === id) {
+        const newQty = Math.max(1, (g.qty || 0) + delta);
+        return { ...g, qty: newQty };
+      }
+      return g;
+    }));
+  };
+
+  const boardGroupsToPrint = useMemo(() => {
+    const result = [];
+    boardGroups.forEach(group => {
+      const qty = group.qty || 1;
+      for (let i = 0; i < qty; i++) {
+        result.push(group);
+      }
+    });
+    return result;
+  }, [boardGroups]);
 
   const filteredSearch = useMemo(() => {
     if (search.length < 2) return [];
@@ -4018,7 +4077,9 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
     window.print();
   };
 
-  const totalLabels = selectedItems.reduce((acc, item) => acc + (parseInt(item.printQty) || 0), 0);
+  const totalLabels = labelMode === 'price' 
+    ? selectedItems.reduce((acc, item) => acc + (parseInt(item.printQty) || 0), 0)
+    : boardGroups.reduce((acc, group) => acc + (group.qty || 1), 0);
 
   const allLabelsToPrint = useMemo(() => {
     const arr = [];
@@ -4056,12 +4117,19 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
 
       <div className="flex items-center gap-3 mb-4 text-stone-900 no-print">
         <div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><Printer className="w-6 h-6" /></div>
-        <h3 className="text-xl font-bold">Impresor de Etiquetas</h3>
+        <div className="flex-1">
+          <h3 className="text-xl font-bold">Impresor de Etiquetas</h3>
+        </div>
+        <div className="flex gap-2 bg-stone-200 p-1.5 rounded-xl">
+          <button onClick={() => { setLabelMode('price'); setSelectedItems([]); setBoardGroups([]); setCurrentBoardGroup([]); }} className={`px-6 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition ${labelMode === 'price' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>💰 Etiquetas Precios</button>
+          <button onClick={() => { setLabelMode('board'); setSelectedItems([]); }} className={`px-6 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition ${labelMode === 'board' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>📋 Etiquetas Cuadro</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 no-print">
         
         {/* PANEL IZQUIERDO: SELECCIÓN */}
+        {labelMode === 'price' && (
         <div className="xl:col-span-5 flex flex-col gap-6">
           <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm">
             <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><CheckSquare className="w-4 h-4 text-[#b5a898]" /> 1. Elegir Productos</h4>
@@ -4128,8 +4196,84 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
             </div>
           </div>
         </div>
+        )}
 
-        {/* PANEL DERECHO: DISEÑO Y PREVIEW */}
+        {/* PANEL IZQUIERDO MODO CUADRO */}
+        {labelMode === 'board' && (
+        <div className="xl:col-span-5 flex flex-col gap-6">
+          {/* Selección de productos para cuadro */}
+          <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm">
+            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><CheckSquare className="w-4 h-4 text-[#b5a898]" /> 1. Productos en Cuadro</h4>
+            
+            <div className="space-y-4 mb-8">
+               <div className="space-y-1 relative">
+                 <label className="text-[10px] font-bold text-stone-500 uppercase">Buscar Artículo</label>
+                 <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-stone-400" />
+                    <input type="text" className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" value={search} onChange={e => setSearch(e.target.value)} placeholder="Ej: Sofá Florencia..." />
+                 </div>
+                 {filteredSearch.length > 0 && (
+                    <div className="absolute top-full left-0 w-full mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                       {filteredSearch.map(p => (
+                         <button key={p.id} onClick={() => addProductToBoard(p)} className="w-full text-left p-3 hover:bg-stone-50 border-b border-stone-100 flex justify-between items-center">
+                           <span className="font-bold text-sm text-stone-800">{p.name}</span><span className="text-[10px] font-black text-emerald-600">{formatCurrency(p.price)}</span>
+                         </button>
+                       ))}
+                    </div>
+                 )}
+               </div>
+            </div>
+
+            <div className="border border-stone-200 rounded-xl overflow-hidden bg-stone-50 min-h-[200px] flex flex-col">
+               <div className="bg-stone-100 p-3 border-b border-stone-200 text-[10px] font-bold text-stone-500 uppercase tracking-widest">
+                  Artículos en Cuadro Actual ({currentBoardGroup.length})
+               </div>
+               <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                  {currentBoardGroup.map(item => (
+                    <div key={item.id} className="bg-white border border-stone-100 p-2 rounded-lg flex justify-between items-center text-sm">
+                       <span className="font-bold text-stone-700 flex-1 truncate">{item.name}</span>
+                       <button onClick={() => removeProductFromBoard(item.id)} className="text-stone-300 hover:text-red-500 ml-2"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                  {currentBoardGroup.length === 0 && <div className="h-full flex items-center justify-center text-stone-400 text-xs font-bold uppercase tracking-widest">Sin productos</div>}
+               </div>
+            </div>
+
+            <button onClick={createBoardGroup} className="w-full mt-4 bg-black text-white px-4 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest hover:bg-stone-800 transition">+ Crear Cuadro Etiqueta</button>
+          </div>
+
+          {/* Cuadros creados */}
+          <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm">
+            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6">Cuadros Creados ({boardGroups.length})</h4>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+               {boardGroups.map(group => (
+                  <div key={group.id} className="bg-stone-50 border border-stone-200 p-4 rounded-xl flex justify-between items-start">
+                     <div className="flex-1">
+                        <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest mb-2">{group.items.length} productos</p>
+                        <div className="space-y-1">
+                           {group.items.slice(0, 3).map((it, idx) => (
+                              <p key={idx} className="text-xs font-bold text-stone-700 truncate">• {it.name}</p>
+                           ))}
+                           {group.items.length > 3 && <p className="text-[9px] text-stone-400 font-bold">+ {group.items.length - 3} más</p>}
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-2 ml-3">
+                        <div className="flex items-center bg-stone-50 border border-stone-200 rounded-lg">
+                           <button onClick={() => updateBoardGroupQty(group.id, -1)} className="px-2 py-1 text-stone-500 hover:bg-stone-200">-</button>
+                           <span className="px-3 text-xs font-black">{group.qty || 1}</span>
+                           <button onClick={() => updateBoardGroupQty(group.id, 1)} className="px-2 py-1 text-stone-500 hover:bg-stone-200">+</button>
+                        </div>
+                        <button onClick={() => removeBoardGroup(group.id)} className="text-stone-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                     </div>
+                  </div>
+               ))}
+               {boardGroups.length === 0 && <div className="text-center py-6 text-stone-400 text-xs font-bold uppercase">Sin cuadros creados</div>}
+            </div>
+          </div>
+        </div>
+        )}
+
+        {labelMode === 'price' && (
         <div className="xl:col-span-7 flex flex-col gap-6">
           <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm flex-1">
             <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><Type className="w-4 h-4 text-[#b5a898]" /> 2. Formato y Bobina</h4>
@@ -4244,9 +4388,49 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
             </button>
           </div>
         </div>
+        )}
+
+        {/* PANEL DERECHO MODO CUADRO */}
+        {labelMode === 'board' && (
+        <div className="xl:col-span-7 flex flex-col gap-6">
+          <div className="bg-white rounded-[2rem] p-8 border border-stone-200 shadow-sm flex-1">
+            <h4 className="text-xs font-black text-stone-800 uppercase tracking-widest mb-6 flex items-center gap-2"><FileText className="w-4 h-4 text-[#b5a898]" /> 2. Vista Previa Cuadro</h4>
+            
+            <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 mb-6">
+               <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3 border-b border-stone-200 pb-2">Tamaño Fijo</p>
+               <p className="text-sm font-black text-stone-800">100mm x 65mm (10cm x 6.5cm)</p>
+               <p className="text-[9px] text-stone-500 font-bold mt-2">Orientación: Horizontal</p>
+            </div>
+
+            {/* VISTA PREVIA CUADRO */}
+            <div className="mb-8 flex flex-col items-center justify-center p-6 bg-[#e8e6e1] rounded-[1.5rem] border-2 border-dashed border-stone-300 relative overflow-x-auto" style={{ backgroundImage: 'radial-gradient(#d6d3d1 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
+               <span className="absolute top-3 right-4 text-[9px] font-black text-stone-400 uppercase tracking-widest bg-white/50 px-2 py-1 rounded backdrop-blur-sm z-10">Vista Previa Cuadro</span>
+               
+               <div className="bg-white shadow-xl rounded border border-stone-300 text-left text-[9px] font-bold leading-tight" style={{ width: '100mm', height: '65mm', padding: '3mm', overflow: 'hidden' }}>
+                  <p className="text-stone-900 font-black text-[8px] mb-1 border-b border-stone-200 pb-1">PRODUCTOS DISPONIBLES</p>
+                  <div className="text-[7px] text-stone-700 space-y-0.5">
+                     {boardGroups[0]?.items?.slice(0, 5).map((item, idx) => (
+                        <div key={idx} className="flex justify-between gap-1">
+                           <span>• {item.name.substring(0, 18)}</span>
+                           <span className="text-emerald-600 font-black shrink-0">{formatCurrency(item.price)}</span>
+                        </div>
+                     )) || (
+                        <p className="italic text-stone-400">Crea un cuadro para ver vista previa</p>
+                     )}
+                  </div>
+               </div>
+            </div>
+
+            <button onClick={handlePrint} className="w-full bg-[#b5a898] text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] text-[11px] shadow-lg hover:bg-[#a39686] transition active:scale-95 flex items-center justify-center gap-3">
+               <Printer className="w-5 h-5" /> Imprimir {totalLabels} Etiquetas de Cuadro
+            </button>
+          </div>
+        </div>
+        )}
       </div>
 
-      {/* ÁREA DE IMPRESIÓN DINÁMICA: Agrupa en filas usando gap nativo y salto de página (row) */}
+      {/* ÁREA DE IMPRESIÓN - MODO PRECIOS */}
+      {labelMode === 'price' && (
       <div id="print-area" className="hidden print:block bg-white text-black">
          {labelChunks.map((chunk, chunkIdx) => (
             <div key={chunkIdx} className="flex" style={{ breakAfter: chunkIdx < labelChunks.length - 1 ? 'page' : 'auto', gap: `${config.gap}mm` }}>
@@ -4262,6 +4446,28 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
             </div>
          ))}
       </div>
+      )}
+
+      {/* ÁREA DE IMPRESIÓN - MODO CUADRO */}
+      {labelMode === 'board' && (
+      <div id="print-area" className="hidden print:block bg-white text-black">
+         {boardGroupsToPrint.map((group, groupIdx) => (
+            <div key={groupIdx} className="flex" style={{ breakAfter: 'page' }}>
+               <div className="box-border flex flex-col text-left font-sans text-black bg-white p-2 leading-tight" style={{ width: '100mm', height: '65mm' }}>
+                  <p className="text-stone-900 font-black text-[8px] mb-1 border-b border-stone-200 pb-1">PRODUCTOS DISPONIBLES</p>
+                  <div className="text-[7px] text-stone-700 space-y-0.5">
+                     {group.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between gap-2">
+                           <span className="flex-1">• {item.name}</span>
+                           <span className="text-emerald-600 font-black whitespace-nowrap">{formatCurrency(item.price)}</span>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         ))}
+      </div>
+      )}
 
     </div>
   );
