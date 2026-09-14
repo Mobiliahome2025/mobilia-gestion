@@ -4429,11 +4429,93 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
             <div className="mb-8 flex flex-col items-center justify-center p-6 bg-[#e8e6e1] rounded-[1.5rem] border-2 border-dashed border-stone-300 relative overflow-x-auto" style={{ backgroundImage: 'radial-gradient(#d6d3d1 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
                <span className="absolute top-3 right-4 text-[9px] font-black text-stone-400 uppercase tracking-widest bg-white/50 px-2 py-1 rounded backdrop-blur-sm z-10">Vista Previa</span>
                
-               <div className={`bg-white shadow-xl flex flex-col justify-center box-border p-2 leading-tight ${boardConfig.font} text-black shrink-0`} style={{ width: '100mm', height: '65mm' }}>
-                  {boardConfig.showName && <p style={{ fontSize: `${boardConfig.nameSize}px`, fontWeight: boardConfig.nameBold ? '900' : 'normal' }}>Sofá Múnich 3 Cuerpos</p>}
-                  {boardConfig.showDimensions && <p style={{ fontSize: `${boardConfig.dimensionsSize}px`, fontWeight: boardConfig.dimensionsBold ? '900' : 'normal', marginTop: '3px' }}>210x90x85 cm</p>}
-                  {boardConfig.showListPrice && <p style={{ fontSize: `${boardConfig.listPriceSize}px`, fontWeight: boardConfig.listPriceBold ? '900' : 'normal', marginTop: '4px' }}>Lista: $ 100.000,00</p>}
-                  {boardConfig.showCashPrice && <p style={{ fontSize: `${boardConfig.cashPriceSize}px`, fontWeight: boardConfig.cashPriceBold ? '900' : 'normal', marginTop: '2px', color: '#16a34a' }}>Efectivo: $ {(100000 * (1 - (cashBonus / 100))).toLocaleString('es-AR')}</p>}
+               <div className={`${boardConfig.font} text-black bg-white relative overflow-hidden box-border shadow-xl`} style={{ 
+                 width: '100mm', 
+                 height: '65mm',
+                 border: '1px dashed #ccc',
+                 padding: '3mm',
+                 display: 'flex',
+                 flexDirection: 'column',
+                 justifyContent: 'space-between'
+               }}>
+                  {/* Marcas de corte esquinas */}
+                  <div style={{ position: 'absolute', top: '2mm', left: '2mm', width: '3mm', height: '1px', backgroundColor: '#999' }} />
+                  <div style={{ position: 'absolute', top: '2mm', right: '2mm', width: '3mm', height: '1px', backgroundColor: '#999' }} />
+                  <div style={{ position: 'absolute', bottom: '2mm', left: '2mm', width: '3mm', height: '1px', backgroundColor: '#999' }} />
+                  <div style={{ position: 'absolute', bottom: '2mm', right: '2mm', width: '3mm', height: '1px', backgroundColor: '#999' }} />
+
+                  {/* SECCIÓN SUPERIOR - NOMBRE Y DIMENSIONES */}
+                  <div>
+                    {boardConfig.showName && <p style={{ 
+                      fontSize: `${boardConfig.nameSize}px`, 
+                      fontWeight: boardConfig.nameBold ? '900' : '700',
+                      margin: '0 0 2mm 0',
+                      lineHeight: '1.2',
+                      color: '#2d2d2d'
+                    }}>Sofá Múnich 3 Cuerpos</p>}
+                    {boardConfig.showDimensions && <p style={{ 
+                      fontSize: `${boardConfig.dimensionsSize}px`, 
+                      fontWeight: boardConfig.dimensionsBold ? '700' : '500',
+                      margin: '0',
+                      color: '#666',
+                      fontStyle: 'italic'
+                    }}>210x90x85 cm</p>}
+                  </div>
+
+                  {/* LÍNEA DIVISORA */}
+                  <div style={{ 
+                    height: '1px', 
+                    backgroundColor: '#b5a898', 
+                    margin: '2mm 0',
+                    width: '100%'
+                  }} />
+
+                  {/* SECCIÓN CENTRAL - PRECIOS */}
+                  <div>
+                    {boardConfig.showListPrice && <div style={{ 
+                      fontSize: `${boardConfig.listPriceSize}px`, 
+                      fontWeight: boardConfig.listPriceBold ? '700' : '400',
+                      margin: '1mm 0',
+                      color: '#666',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{ fontSize: '0.85em' }}>Precio Lista:</span>
+                      <span style={{ fontWeight: '700' }}>$ 100.000,00</span>
+                    </div>}
+                  </div>
+
+                  {/* SECCIÓN INFERIOR - PRECIO EFECTIVO DESTACADO */}
+                  {boardConfig.showCashPrice && <div style={{ 
+                    backgroundColor: '#f0fdf4',
+                    border: `2px solid #16a34a`,
+                    borderRadius: '3px',
+                    padding: '2mm',
+                    textAlign: 'center'
+                  }}>
+                    <p style={{ 
+                      fontSize: '9px', 
+                      fontWeight: '600',
+                      margin: '0 0 1mm 0',
+                      color: '#15803d',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>PRECIO EFECTIVO</p>
+                    <p style={{ 
+                      fontSize: `${boardConfig.cashPriceSize}px`, 
+                      fontWeight: boardConfig.cashPriceBold ? '900' : '700',
+                      margin: '0',
+                      color: '#16a34a',
+                      lineHeight: '1'
+                    }}>$ {(100000 * (1 - (cashBonus / 100))).toLocaleString('es-AR')}</p>
+                    <p style={{ 
+                      fontSize: '8px',
+                      margin: '1mm 0 0 0',
+                      color: '#6b7280',
+                      fontStyle: 'italic'
+                    }}>Dto: -{cashBonus}%</p>
+                  </div>}
                </div>
             </div>
 
@@ -4475,13 +4557,96 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
             }
             
             return pages.map((page, pageIdx) => (
-              <div key={pageIdx} style={{ breakAfter: pageIdx < pages.length - 1 ? 'page' : 'auto' }}>
+              <div key={pageIdx} style={{ breakAfter: pageIdx < pages.length - 1 ? 'page' : 'auto', padding: '0.5cm' }}>
                  {page.map((item, idx) => (
-                   <div key={`${pageIdx}-${idx}`} className={`box-border flex flex-col justify-center overflow-hidden p-2 leading-tight ${boardConfig.font} text-black bg-white`} style={{ width: '100mm', height: '65mm' }}>
-                      {boardConfig.showName && <p style={{ fontSize: `${boardConfig.nameSize}px`, fontWeight: boardConfig.nameBold ? '900' : 'normal' }}>{item.product.name}</p>}
-                      {boardConfig.showDimensions && <p style={{ fontSize: `${boardConfig.dimensionsSize}px`, fontWeight: boardConfig.dimensionsBold ? '900' : 'normal', marginTop: '2px' }}>{item.product.dimensions}</p>}
-                      {boardConfig.showListPrice && <p style={{ fontSize: `${boardConfig.listPriceSize}px`, fontWeight: boardConfig.listPriceBold ? '900' : 'normal', marginTop: '3px' }}>Lista: {formatCurrency(item.product.price)}</p>}
-                      {boardConfig.showCashPrice && <p style={{ fontSize: `${boardConfig.cashPriceSize}px`, fontWeight: boardConfig.cashPriceBold ? '900' : 'normal', marginTop: '2px', color: '#16a34a' }}>Efectivo: {formatCurrency(item.product.price * (1 - (cashBonus / 100)))}</p>}
+                   <div key={`${pageIdx}-${idx}`} className={`${boardConfig.font} text-black bg-white relative overflow-hidden box-border`} style={{ 
+                     width: '100mm', 
+                     height: '65mm',
+                     border: '1px dashed #ccc',
+                     marginBottom: idx === 0 ? '0.5cm' : '0',
+                     padding: '3mm',
+                     display: 'flex',
+                     flexDirection: 'column',
+                     justifyContent: 'space-between'
+                   }}>
+                      {/* Marcas de corte esquinas */}
+                      <div style={{ position: 'absolute', top: '2mm', left: '2mm', width: '3mm', height: '1px', backgroundColor: '#999' }} />
+                      <div style={{ position: 'absolute', top: '2mm', right: '2mm', width: '3mm', height: '1px', backgroundColor: '#999' }} />
+                      <div style={{ position: 'absolute', bottom: '2mm', left: '2mm', width: '3mm', height: '1px', backgroundColor: '#999' }} />
+                      <div style={{ position: 'absolute', bottom: '2mm', right: '2mm', width: '3mm', height: '1px', backgroundColor: '#999' }} />
+
+                      {/* SECCIÓN SUPERIOR - NOMBRE Y DIMENSIONES */}
+                      <div>
+                        {boardConfig.showName && <p style={{ 
+                          fontSize: `${boardConfig.nameSize}px`, 
+                          fontWeight: boardConfig.nameBold ? '900' : '700',
+                          margin: '0 0 2mm 0',
+                          lineHeight: '1.2',
+                          color: '#2d2d2d'
+                        }}>{item.product.name}</p>}
+                        {boardConfig.showDimensions && <p style={{ 
+                          fontSize: `${boardConfig.dimensionsSize}px`, 
+                          fontWeight: boardConfig.dimensionsBold ? '700' : '500',
+                          margin: '0',
+                          color: '#666',
+                          fontStyle: 'italic'
+                        }}>{item.product.dimensions}</p>}
+                      </div>
+
+                      {/* LÍNEA DIVISORA */}
+                      <div style={{ 
+                        height: '1px', 
+                        backgroundColor: '#b5a898', 
+                        margin: '2mm 0',
+                        width: '100%'
+                      }} />
+
+                      {/* SECCIÓN CENTRAL - PRECIOS */}
+                      <div>
+                        {boardConfig.showListPrice && <div style={{ 
+                          fontSize: `${boardConfig.listPriceSize}px`, 
+                          fontWeight: boardConfig.listPriceBold ? '700' : '400',
+                          margin: '1mm 0',
+                          color: '#666',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <span style={{ fontSize: '0.85em' }}>Precio Lista:</span>
+                          <span style={{ fontWeight: '700' }}>{formatCurrency(item.product.price)}</span>
+                        </div>}
+                      </div>
+
+                      {/* SECCIÓN INFERIOR - PRECIO EFECTIVO DESTACADO */}
+                      {boardConfig.showCashPrice && <div style={{ 
+                        backgroundColor: '#f0fdf4',
+                        border: `2px solid #16a34a`,
+                        borderRadius: '3px',
+                        padding: '2mm',
+                        textAlign: 'center'
+                      }}>
+                        <p style={{ 
+                          fontSize: '9px', 
+                          fontWeight: '600',
+                          margin: '0 0 1mm 0',
+                          color: '#15803d',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>PRECIO EFECTIVO</p>
+                        <p style={{ 
+                          fontSize: `${boardConfig.cashPriceSize}px`, 
+                          fontWeight: boardConfig.cashPriceBold ? '900' : '700',
+                          margin: '0',
+                          color: '#16a34a',
+                          lineHeight: '1'
+                        }}>{formatCurrency(item.product.price * (1 - (cashBonus / 100)))}</p>
+                        <p style={{ 
+                          fontSize: '8px',
+                          margin: '1mm 0 0 0',
+                          color: '#6b7280',
+                          fontStyle: 'italic'
+                        }}>Dto: -{cashBonus}%</p>
+                      </div>}
                    </div>
                  ))}
               </div>
