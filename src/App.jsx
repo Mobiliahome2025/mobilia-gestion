@@ -3087,7 +3087,6 @@ function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loa
   const [showResults, setShowResults] = useState(false);
   const [tempPaymentMethod, setTempPaymentMethod] = useState('');
   const [tempPaymentAmount, setTempPaymentAmount] = useState('');
-
   // Préstamo State
   const [clientName, setClientName] = useState(initialQuote ? initialQuote.client.name : '');
   const [clientPhone, setClientPhone] = useState(initialQuote ? initialQuote.client.phone : '');
