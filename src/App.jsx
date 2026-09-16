@@ -4710,7 +4710,7 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
   );
 }
 
-function OrdersView({ orders, setOrders }) {
+function OrdersView({ orders, setOrders, products = [] }) {
   const [newOrder, setNewOrder] = useState({
     client: '',
     product: '',
@@ -4725,6 +4725,34 @@ function OrdersView({ orders, setOrders }) {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
+
+  const productLookup = useMemo(() => {
+    return products.reduce((acc, product) => {
+      const key = String(product?.name || '').trim().toLowerCase();
+      if (key) acc[key] = product;
+      return acc;
+    }, {});
+  }, [products]);
+
+  const productOptions = useMemo(() => {
+    return [...new Set(products.map(product => String(product?.name || '')).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
+  const providerOptions = useMemo(() => {
+    return [...new Set(products.map(product => String(product?.supplier || '')).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
+  const handleProductChange = (value) => {
+    const normalized = String(value || '').trim();
+    const matchedProduct = productLookup[normalized.toLowerCase()];
+
+    setNewOrder(prev => ({
+      ...prev,
+      product: normalized,
+      provider: matchedProduct?.supplier || prev.provider,
+      unitPrice: matchedProduct ? (Number(matchedProduct.price) || Number(matchedProduct.cost) || prev.unitPrice) : prev.unitPrice
+    }));
+  };
 
   const totals = useMemo(() => {
     const pendingDelivery = orders.filter(order => !order.supplierReceived).reduce((acc, order) => acc + (Number(order.total) || 0), 0);
@@ -4857,10 +4885,36 @@ function OrdersView({ orders, setOrders }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3 mb-6">
           <input value={newOrder.client} onChange={(e) => setNewOrder({ ...newOrder, client: e.target.value })} placeholder="Cliente" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898] xl:col-span-2" />
-          <input value={newOrder.product} onChange={(e) => setNewOrder({ ...newOrder, product: e.target.value })} placeholder="Producto" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898] xl:col-span-2" />
+
+          <div className="xl:col-span-2">
+            <input
+              list="order-product-list"
+              value={newOrder.product}
+              onChange={(e) => handleProductChange(e.target.value)}
+              placeholder="Producto"
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]"
+            />
+            <datalist id="order-product-list">
+              {productOptions.map(product => <option key={product} value={product} />)}
+            </datalist>
+          </div>
+
           <input type="number" value={newOrder.quantity} onChange={(e) => setNewOrder({ ...newOrder, quantity: e.target.value })} placeholder="Cant." className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
           <input type="number" value={newOrder.unitPrice} onChange={(e) => setNewOrder({ ...newOrder, unitPrice: e.target.value })} placeholder="Precio" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
-          <input value={newOrder.provider} onChange={(e) => setNewOrder({ ...newOrder, provider: e.target.value })} placeholder="Proveedor" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898] xl:col-span-2" />
+
+          <div className="xl:col-span-2">
+            <input
+              list="order-provider-list"
+              value={newOrder.provider}
+              onChange={(e) => setNewOrder({ ...newOrder, provider: e.target.value })}
+              placeholder="Proveedor"
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]"
+            />
+            <datalist id="order-provider-list">
+              {providerOptions.map(provider => <option key={provider} value={provider} />)}
+            </datalist>
+          </div>
+
           <input type="date" value={newOrder.promisedDate} onChange={(e) => setNewOrder({ ...newOrder, promisedDate: e.target.value })} className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
           <input type="number" value={newOrder.paidAmount} onChange={(e) => setNewOrder({ ...newOrder, paidAmount: e.target.value })} placeholder="Cobrado" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-600 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"><input type="checkbox" checked={newOrder.supplierOrdered} onChange={(e) => setNewOrder({ ...newOrder, supplierOrdered: e.target.checked })} /> Pedido</label>
@@ -5343,7 +5397,7 @@ export default function App() {
           {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} products={products} paymentMethods={paymentMethods} />}
           {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { setQuoteToConvert(quote); setCurrentView('sales'); }} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
-          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} />}
+          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} />}
           {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
           {currentView === 'loans' && <LoansView loans={loans} setLoans={setLoans} sales={sales} setSales={setSales} paymentMethods={paymentMethods} />}
           {currentView === 'purchases' && <PurchasesView purchases={purchases} setPurchases={setPurchases} paymentMethods={paymentMethods} expenseCategories={expenseCategories} searchTerm={searchTerm} />}
