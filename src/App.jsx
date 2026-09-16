@@ -541,13 +541,14 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
                       <td className="p-6 text-right font-black text-lg text-stone-800">{formatCurrency(total)}</td>
                       <td className="p-6 text-center">
                          {q.status === 'converted' ? <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-md text-[9px] font-black uppercase tracking-widest">Convertido</span> :
+                          q.status === 'ordered' || q.status === 'order-created' ? <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-md text-[9px] font-black uppercase tracking-widest">Pedido</span> :
                           isExpired ? <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-md text-[9px] font-black uppercase tracking-widest">Vencido</span> : 
                           <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-md text-[9px] font-black uppercase tracking-widest">Vigente</span>}
                       </td>
                       <td className="p-6 text-center">
                          <div className="flex justify-center gap-2">
                            <button onClick={() => setSelectedQuote(q)} className="p-2 bg-stone-100 text-stone-600 rounded-lg hover:bg-[#b5a898] hover:text-white transition" title="Ver e Imprimir"><Printer className="w-4 h-4" /></button>
-                           {q.status !== 'converted' && (
+                           {q.status !== 'converted' && q.status !== 'ordered' && q.status !== 'order-created' && (
                               <>
                                 {(() => {
                                   const providers = [...new Set(q.items.map(item => String(item.provider || item.supplier || 'Sin proveedor')).filter(Boolean))];
@@ -5270,6 +5271,7 @@ export default function App() {
   const handleConvertBudgetToOrders = (quote, mode = 'full') => {
     const items = quote?.items || [];
     if (!items.length) return;
+    if (quote?.status === 'ordered' || quote?.status === 'order-created') return;
 
     const buildOrderFromItem = (item, index) => {
       const product = products.find(p => p.id === item.productId || p.name === item.name);
@@ -5324,7 +5326,7 @@ export default function App() {
     }
 
     setOrders(prev => [...nextOrders, ...prev]);
-    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'order-created' } : q));
+    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'ordered' } : q));
     setCurrentView('orders');
   };
   const setCategories = (n) => { setCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categories: n }, { merge: true }); };
@@ -5423,7 +5425,7 @@ export default function App() {
           {currentView === 'cashflow' && <CashFlowView sales={sales} purchases={purchases} transfers={transfers} setTransfers={setTransfers} accounts={accounts} searchTerm={searchTerm} />}
           {currentView === 'pnl' && <PnLView sales={sales} purchases={purchases} paymentBonuses={paymentBonuses} taxRules={taxRules} />}
           {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} products={products} paymentMethods={paymentMethods} />}
-          {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { setQuoteToConvert(quote); setCurrentView('sales'); }} onConvertToOrder={(quote, mode) => handleConvertBudgetToOrders(quote, mode)} />}
+          {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { if (quote?.status === 'ordered' || quote?.status === 'order-created') return; setQuoteToConvert(quote); setCurrentView('sales'); }} onConvertToOrder={(quote, mode) => handleConvertBudgetToOrders(quote, mode)} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
           {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} />}
           {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
