@@ -53,6 +53,57 @@ const INITIAL_LOAN_ADVANCES = [
 
 const INITIAL_TAX_CONCEPTS = ['IVA', 'IIBB', 'Costo Transaccional', 'DyC', 'Costo Financiero'];
 
+const INITIAL_ORDERS = [
+  {
+    id: 1,
+    client: 'María López',
+    product: 'Sofá 3 cuerpos',
+    quantity: 1,
+    unitPrice: 420000,
+    total: 420000,
+    provider: 'Muebles del Sur',
+    supplierOrdered: true,
+    supplierReceived: false,
+    status: 'pedido',
+    promisedDate: '2026-09-20',
+    deliveryDate: '',
+    paidAmount: 200000,
+    notes: 'Solicitado por WhatsApp, falta confirmación de entrega'
+  },
+  {
+    id: 2,
+    client: 'Juan Pérez',
+    product: 'Mesa de comedor',
+    quantity: 2,
+    unitPrice: 185000,
+    total: 370000,
+    provider: 'Madera Premium',
+    supplierOrdered: false,
+    supplierReceived: false,
+    status: 'pendiente',
+    promisedDate: '2026-09-25',
+    deliveryDate: '',
+    paidAmount: 0,
+    notes: 'Sin pedido aún al proveedor'
+  },
+  {
+    id: 3,
+    client: 'Laura Gómez',
+    product: 'Silla nórdica',
+    quantity: 4,
+    unitPrice: 56000,
+    total: 224000,
+    provider: 'Muebles del Sur',
+    supplierOrdered: true,
+    supplierReceived: true,
+    status: 'entregado',
+    promisedDate: '2026-09-14',
+    deliveryDate: '2026-09-12',
+    paidAmount: 224000,
+    notes: 'Se entregó y se cobró completo'
+  }
+];
+
 const INITIAL_TAX_RULES = [
   {
     id: 3,
@@ -4659,6 +4710,250 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
   );
 }
 
+function OrdersView({ orders, setOrders }) {
+  const [newOrder, setNewOrder] = useState({
+    client: '',
+    product: '',
+    quantity: 1,
+    unitPrice: 0,
+    provider: '',
+    supplierOrdered: false,
+    supplierReceived: false,
+    paidAmount: 0,
+    promisedDate: '',
+    notes: ''
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('todos');
+
+  const totals = useMemo(() => {
+    const pendingDelivery = orders.filter(order => !order.supplierReceived).reduce((acc, order) => acc + (Number(order.total) || 0), 0);
+    const pendingSupplier = orders.filter(order => !order.supplierOrdered).reduce((acc, order) => acc + (Number(order.total) || 0), 0);
+    const paid = orders.reduce((acc, order) => acc + (Number(order.paidAmount) || 0), 0);
+    const balance = orders.reduce((acc, order) => acc + ((Number(order.total) || 0) - (Number(order.paidAmount) || 0)), 0);
+    const overdue = orders.filter(order => !order.supplierReceived && order.promisedDate && order.promisedDate < new Date().toISOString().slice(0, 10)).length;
+
+    return { pendingDelivery, pendingSupplier, paid, balance, overdue };
+  }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    const query = searchTerm.toLowerCase().trim();
+
+    return orders.filter(order => {
+      const matchesQuery = !query || [order.client, order.product, order.provider, order.notes].some(value =>
+        String(value || '').toLowerCase().includes(query)
+      );
+
+      const matchesStatus = filterStatus === 'todos' || order.status === filterStatus;
+      return matchesQuery && matchesStatus;
+    });
+  }, [orders, searchTerm, filterStatus]);
+
+  const addOrder = () => {
+    if (!newOrder.client || !newOrder.product || !newOrder.provider) return;
+
+    const quantity = Number(newOrder.quantity) || 1;
+    const unitPrice = Number(newOrder.unitPrice) || 0;
+    const total = quantity * unitPrice;
+    const status = newOrder.supplierReceived ? 'entregado' : newOrder.supplierOrdered ? 'pedido' : 'pendiente';
+
+    const created = {
+      id: Date.now(),
+      client: newOrder.client,
+      product: newOrder.product,
+      quantity,
+      unitPrice,
+      total,
+      provider: newOrder.provider,
+      supplierOrdered: Boolean(newOrder.supplierOrdered),
+      supplierReceived: Boolean(newOrder.supplierReceived),
+      status,
+      promisedDate: newOrder.promisedDate,
+      deliveryDate: newOrder.supplierReceived ? (newOrder.promisedDate || new Date().toISOString().slice(0, 10)) : '',
+      paidAmount: Number(newOrder.paidAmount) || 0,
+      notes: newOrder.notes
+    };
+
+    setOrders([created, ...orders]);
+    setNewOrder({
+      client: '',
+      product: '',
+      quantity: 1,
+      unitPrice: 0,
+      provider: '',
+      supplierOrdered: false,
+      supplierReceived: false,
+      paidAmount: 0,
+      promisedDate: '',
+      notes: ''
+    });
+  };
+
+  const updateOrder = (id, field, value) => {
+    setOrders(prev => prev.map(order => {
+      if (order.id !== id) return order;
+
+      const updated = { ...order, [field]: value };
+
+      if (field === 'supplierReceived' && value === true) {
+        updated.status = 'entregado';
+        updated.deliveryDate = updated.deliveryDate || updated.promisedDate || new Date().toISOString().slice(0, 10);
+      }
+
+      if (field === 'supplierOrdered' && value === true && !updated.supplierReceived) {
+        updated.status = 'pedido';
+      }
+
+      if (field === 'supplierOrdered' && value === false && !updated.supplierReceived) {
+        updated.status = 'pendiente';
+      }
+
+      if (field === 'supplierReceived' && value === false) {
+        updated.status = updated.supplierOrdered ? 'pedido' : 'pendiente';
+      }
+
+      return updated;
+    }));
+  };
+
+  const deleteOrder = (id) => {
+    setOrders(prev => prev.filter(order => order.id !== id));
+  };
+
+  const statusColors = {
+    pendiente: 'bg-amber-100 text-amber-700',
+    pedido: 'bg-blue-100 text-blue-700',
+    entregado: 'bg-emerald-100 text-emerald-700'
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <StatCard title="Pendiente de entrega" value={formatCurrency(totals.pendingDelivery)} icon={<Package className="w-5 h-5" />} color="grey" />
+        <StatCard title="Sin pedir al proveedor" value={formatCurrency(totals.pendingSupplier)} icon={<ShoppingBag className="w-5 h-5" />} color="red" />
+        <StatCard title="Dinero recibido" value={formatCurrency(totals.paid)} icon={<Wallet className="w-5 h-5" />} color="emerald" />
+        <StatCard title="Saldo total" value={formatCurrency(totals.balance)} icon={<TrendingDown className="w-5 h-5" />} color="greige" />
+        <StatCard title="Vencidos" value={String(totals.overdue)} icon={<Clock className="w-5 h-5" />} color="red" />
+      </div>
+
+      <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm p-6 md:p-8">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#b5a898]/10 p-3 rounded-2xl text-[#b5a898] shadow-sm"><PackagePlus className="w-6 h-6" /></div>
+            <h3 className="text-xl font-black text-stone-900">Control de pedidos pendientes</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {['todos', 'pendiente', 'pedido', 'entregado'].map(status => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${filterStatus === status ? 'bg-black text-white shadow-md' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+              >
+                {status === 'todos' ? 'Todos' : status}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3 mb-6">
+          <input value={newOrder.client} onChange={(e) => setNewOrder({ ...newOrder, client: e.target.value })} placeholder="Cliente" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898] xl:col-span-2" />
+          <input value={newOrder.product} onChange={(e) => setNewOrder({ ...newOrder, product: e.target.value })} placeholder="Producto" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898] xl:col-span-2" />
+          <input type="number" value={newOrder.quantity} onChange={(e) => setNewOrder({ ...newOrder, quantity: e.target.value })} placeholder="Cant." className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+          <input type="number" value={newOrder.unitPrice} onChange={(e) => setNewOrder({ ...newOrder, unitPrice: e.target.value })} placeholder="Precio" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+          <input value={newOrder.provider} onChange={(e) => setNewOrder({ ...newOrder, provider: e.target.value })} placeholder="Proveedor" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898] xl:col-span-2" />
+          <input type="date" value={newOrder.promisedDate} onChange={(e) => setNewOrder({ ...newOrder, promisedDate: e.target.value })} className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+          <input type="number" value={newOrder.paidAmount} onChange={(e) => setNewOrder({ ...newOrder, paidAmount: e.target.value })} placeholder="Cobrado" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-600 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"><input type="checkbox" checked={newOrder.supplierOrdered} onChange={(e) => setNewOrder({ ...newOrder, supplierOrdered: e.target.checked })} /> Pedido</label>
+          <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-600 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"><input type="checkbox" checked={newOrder.supplierReceived} onChange={(e) => setNewOrder({ ...newOrder, supplierReceived: e.target.checked })} /> Entregado</label>
+          <input value={newOrder.notes} onChange={(e) => setNewOrder({ ...newOrder, notes: e.target.value })} placeholder="Observaciones" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898] xl:col-span-2" />
+          <button onClick={addOrder} className="bg-black text-white px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm hover:bg-stone-800 transition xl:col-span-1">Agregar</button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[2rem] border border-stone-200 shadow-sm p-4 md:p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <h4 className="text-xs font-black uppercase tracking-widest text-stone-800">Listado de pedidos</h4>
+          <div className="relative md:w-80">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-stone-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar cliente, producto o proveedor"
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-[#f4f2f0] text-stone-500 text-[10px] font-black uppercase tracking-widest border-b border-stone-200">
+                <th className="p-4 text-left">Cliente</th>
+                <th className="p-4 text-left">Producto</th>
+                <th className="p-4 text-left">Proveedor</th>
+                <th className="p-4 text-center">Fecha</th>
+                <th className="p-4 text-center">Pedido</th>
+                <th className="p-4 text-center">Entrega</th>
+                <th className="p-4 text-right">Total</th>
+                <th className="p-4 text-right">Cobrado</th>
+                <th className="p-4 text-right">Saldo</th>
+                <th className="p-4 text-center">Estado</th>
+                <th className="p-4 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOrders.map((order) => {
+                const saldo = Number(order.total || 0) - Number(order.paidAmount || 0);
+                return (
+                  <tr key={order.id} className="border-b border-stone-100 align-top hover:bg-stone-50 transition">
+                    <td className="p-4">
+                      <p className="font-black text-stone-800">{order.client}</p>
+                      <p className="text-[10px] uppercase text-stone-400">{order.promisedDate || 'Sin fecha'}</p>
+                    </td>
+                    <td className="p-4">
+                      <p className="font-bold text-stone-800">{order.product}</p>
+                      <p className="text-[10px] text-stone-500">{order.quantity} u · {formatCurrency(order.unitPrice)}</p>
+                    </td>
+                    <td className="p-4 font-bold text-stone-600">{order.provider}</td>
+                    <td className="p-4 text-center text-[10px] font-bold text-stone-500">
+                      {order.promisedDate || '—'}
+                    </td>
+                    <td className="p-4 text-center">
+                      <input type="checkbox" checked={!!order.supplierOrdered} onChange={(e) => updateOrder(order.id, 'supplierOrdered', e.target.checked)} className="accent-[#b5a898] h-4 w-4" />
+                    </td>
+                    <td className="p-4 text-center">
+                      <input type="checkbox" checked={!!order.supplierReceived} onChange={(e) => updateOrder(order.id, 'supplierReceived', e.target.checked)} className="accent-emerald-600 h-4 w-4" />
+                    </td>
+                    <td className="p-4 text-right font-black text-stone-800">{formatCurrency(order.total)}</td>
+                    <td className="p-4 text-right">
+                      <input type="number" value={order.paidAmount || 0} onChange={(e) => updateOrder(order.id, 'paidAmount', Number(e.target.value) || 0)} className="w-24 bg-stone-50 border border-stone-200 rounded-lg px-2 py-2 text-right font-bold text-emerald-700 outline-none focus:ring-2 focus:ring-[#b5a898]" />
+                    </td>
+                    <td className={`p-4 text-right font-black ${saldo > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatCurrency(saldo)}</td>
+                    <td className="p-4 text-center"><span className={`inline-flex px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${statusColors[order.status] || 'bg-stone-100 text-stone-700'}`}>{order.status}</span></td>
+                    <td className="p-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => updateOrder(order.id, 'notes', prompt('Observación:', order.notes || '') || order.notes)} className="text-stone-400 hover:text-[#b5a898] transition" title="Editar observación"><FileText className="w-4 h-4" /></button>
+                        <button onClick={() => deleteOrder(order.id)} className="text-stone-400 hover:text-red-500 transition" title="Eliminar pedido"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {filteredOrders.length === 0 && (
+            <div className="py-16 text-center text-stone-400">
+              <Package className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p className="font-black uppercase tracking-widest text-[10px]">No hay pedidos para este filtro</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DataCleanupView({ products, setProducts, categories, setCategories, categoryMargins, setCategoryMargins, loanAdvances, setLoanAdvances, taxRules, setTaxRules }) {
   const [catCanonical, setCatCanonical] = useState({});
   const [supCanonical, setSupCanonical] = useState({});
@@ -4896,6 +5191,7 @@ export default function App() {
   const [quotes, setQuotesLocal] = useState([]); 
   const [purchases, setPurchasesLocal] = useState([]); 
   const [transfers, setTransfersLocal] = useState([]);
+  const [orders, setOrdersLocal] = useState(INITIAL_ORDERS);
   
   const [categories, setCategoriesLocal] = useState(INITIAL_CATEGORIES);
   const [categoryMargins, setCategoryMarginsLocal] = useState(INITIAL_CATEGORY_MARGINS);
@@ -4926,6 +5222,7 @@ export default function App() {
         if (data.presupuestos) setQuotesLocal(data.presupuestos);
         if (data.gastos) setPurchasesLocal(data.gastos);
         if (data.transferencias) setTransfersLocal(data.transferencias);
+        if (data.pedidos) setOrdersLocal(data.pedidos);
         if (data.categories) setCategoriesLocal(data.categories);
         if (data.categoryMargins) setCategoryMarginsLocal(data.categoryMargins);
         if (data.expenseCategories) setExpenseCategoriesLocal(data.expenseCategories);
@@ -4947,6 +5244,7 @@ export default function App() {
   const setQuotes = (n) => { setQuotesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { presupuestos: n }, { merge: true }); };
   const setPurchases = (n) => { setPurchasesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { gastos: n }, { merge: true }); };
   const setTransfers = (n) => { setTransfersLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { transferencias: n }, { merge: true }); };
+  const setOrders = (n) => { setOrdersLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { pedidos: n }, { merge: true }); };
   const setCategories = (n) => { setCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categories: n }, { merge: true }); };
   const setCategoryMargins = (n) => { setCategoryMarginsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categoryMargins: n }, { merge: true }); };
   const setExpenseCategories = (n) => { setExpenseCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { expenseCategories: n }, { merge: true }); };
@@ -4996,6 +5294,7 @@ export default function App() {
             <NavItem icon={ClipboardList} label="Presupuestos" id="quotes" />
             <NavItem icon={Package} label="Inventario" id="inventory" />
             <NavItem icon={ShoppingCart} label="Ventas" id="sales" />
+            <NavItem icon={PackagePlus} label="Pedidos" id="orders" />
             <NavItem icon={Banknote} label="Préstamos" id="loans" />
             <NavItem icon={ShoppingBag} label="Egresos" id="purchases" />
             <NavItem icon={Printer} label="Etiquetas" id="labels" />
@@ -5044,6 +5343,7 @@ export default function App() {
           {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} products={products} paymentMethods={paymentMethods} />}
           {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { setQuoteToConvert(quote); setCurrentView('sales'); }} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
+          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} />}
           {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
           {currentView === 'loans' && <LoansView loans={loans} setLoans={setLoans} sales={sales} setSales={setSales} paymentMethods={paymentMethods} />}
           {currentView === 'purchases' && <PurchasesView purchases={purchases} setPurchases={setPurchases} paymentMethods={paymentMethods} expenseCategories={expenseCategories} searchTerm={searchTerm} />}
