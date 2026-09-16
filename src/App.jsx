@@ -554,9 +554,9 @@ function QuotesView({ quotes, setQuotes, products, categories, paymentMethods, p
                                   const sameProvider = providers.length <= 1;
 
                                   return sameProvider ? (
-                                    <button onClick={() => onConvertToOrder && onConvertToOrder({ quote: q, mode: 'full' })} className="p-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition" title="Convertir a Pedido completo"><ClipboardList className="w-4 h-4" /></button>
+                                    <button onClick={() => onConvertToOrder && onConvertToOrder(q, 'full')} className="p-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition" title="Convertir a Pedido completo"><ClipboardList className="w-4 h-4" /></button>
                                   ) : (
-                                    <button onClick={() => onConvertToOrder && onConvertToOrder({ quote: q, mode: 'split' })} className="p-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition" title="Convertir por producto"><ClipboardList className="w-4 h-4" /></button>
+                                    <button onClick={() => onConvertToOrder && onConvertToOrder(q, 'split')} className="p-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition" title="Convertir por producto"><ClipboardList className="w-4 h-4" /></button>
                                   );
                                 })()}
                                 <button onClick={() => onConvertToSale && onConvertToSale(q)} className="p-2 bg-stone-100 text-stone-600 rounded-lg hover:bg-stone-800 hover:text-white transition" title="Convertir a Venta"><ShoppingCart className="w-4 h-4" /></button>
@@ -4673,7 +4673,7 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
   );
 }
 
-function OrdersView({ orders, setOrders, products = [], quoteToOrder, clearQuoteToOrder }) {
+function OrdersView({ orders, setOrders, products = [] }) {
   const [newOrder, setNewOrder] = useState({
     client: '',
     product: '',
@@ -4716,67 +4716,6 @@ function OrdersView({ orders, setOrders, products = [], quoteToOrder, clearQuote
       unitPrice: matchedProduct ? (Number(matchedProduct.price) || Number(matchedProduct.cost) || prev.unitPrice) : prev.unitPrice
     }));
   };
-
-  useEffect(() => {
-    if (!quoteToOrder || !quoteToOrder.quote || !quoteToOrder.quote.items || quoteToOrder.quote.items.length === 0) return;
-
-    const quote = quoteToOrder.quote;
-    const items = quote.items;
-
-    const createOrderFromItem = (item, index) => {
-      const product = products.find(p => p.id === item.productId || p.name === item.name);
-      const quantity = Number(item.qty) || 1;
-      const unitPrice = Number(item.price) || 0;
-
-      return {
-        id: Date.now() + index + Math.random(),
-        client: quote.client?.name || '',
-        product: String(item.name || ''),
-        quantity,
-        unitPrice,
-        total: quantity * unitPrice,
-        provider: String(item.provider || item.supplier || product?.supplier || ''),
-        supplierOrdered: false,
-        supplierReceived: false,
-        status: 'pendiente',
-        promisedDate: '',
-        deliveryDate: '',
-        paidAmount: 0,
-        notes: `Creado desde presupuesto ${quote.id}`
-      };
-    };
-
-    if (quoteToOrder.mode === 'full') {
-      const providers = [...new Set(items.map(item => String(item.provider || item.supplier || '').trim()).filter(Boolean))];
-      const provider = providers[0] || '';
-      const combinedProductText = items.map(item => item.name).join(', ');
-      const total = items.reduce((acc, item) => acc + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
-
-      const fullOrder = {
-        id: Date.now(),
-        client: quote.client?.name || '',
-        product: combinedProductText,
-        quantity: items.reduce((acc, item) => acc + (Number(item.qty) || 1), 0),
-        unitPrice: total / Math.max(items.reduce((acc, item) => acc + (Number(item.qty) || 1), 0), 1),
-        total,
-        provider,
-        supplierOrdered: false,
-        supplierReceived: false,
-        status: 'pendiente',
-        promisedDate: '',
-        deliveryDate: '',
-        paidAmount: 0,
-        notes: `Pedido completo desde presupuesto ${quote.id}`
-      };
-
-      setOrders(prev => [fullOrder, ...prev]);
-    } else {
-      const draftedOrders = items.map((item, index) => createOrderFromItem(item, index));
-      setOrders(prev => [...draftedOrders, ...prev]);
-    }
-
-    if (clearQuoteToOrder) clearQuoteToOrder();
-  }, [quoteToOrder, products, setOrders, clearQuoteToOrder]);
 
   const totals = useMemo(() => {
     const pendingDelivery = orders.filter(order => !order.supplierReceived).reduce((acc, order) => acc + (Number(order.total) || 0), 0);
@@ -5261,7 +5200,6 @@ export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [quoteToConvert, setQuoteToConvert] = useState(null);
-  const [quoteToOrder, setQuoteToOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [products, setProductsLocal] = useState([]);
@@ -5323,7 +5261,72 @@ export default function App() {
   const setQuotes = (n) => { setQuotesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { presupuestos: n }, { merge: true }); };
   const setPurchases = (n) => { setPurchasesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { gastos: n }, { merge: true }); };
   const setTransfers = (n) => { setTransfersLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { transferencias: n }, { merge: true }); };
-  const setOrders = (n) => { setOrdersLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { pedidos: n }, { merge: true }); };
+  const setOrders = (n) => {
+    const nextValue = typeof n === 'function' ? n(orders) : n;
+    setOrdersLocal(nextValue);
+    setDoc(doc(db, "sistema", "datosGenerales"), { pedidos: nextValue }, { merge: true });
+  };
+
+  const handleConvertBudgetToOrders = (quote, mode = 'full') => {
+    const items = quote?.items || [];
+    if (!items.length) return;
+
+    const buildOrderFromItem = (item, index) => {
+      const product = products.find(p => p.id === item.productId || p.name === item.name);
+      const quantity = Number(item.qty) || 1;
+      const unitPrice = Number(item.price) || 0;
+
+      return {
+        id: Date.now() + index + Math.random(),
+        client: quote.client?.name || '',
+        product: String(item.name || ''),
+        quantity,
+        unitPrice,
+        total: quantity * unitPrice,
+        provider: String(item.provider || item.supplier || product?.supplier || ''),
+        supplierOrdered: false,
+        supplierReceived: false,
+        status: 'pendiente',
+        promisedDate: '',
+        deliveryDate: '',
+        paidAmount: 0,
+        notes: `Creado desde presupuesto ${quote.id}`
+      };
+    };
+
+    let nextOrders = [];
+
+    if (mode === 'full') {
+      const providers = [...new Set(items.map(item => String(item.provider || item.supplier || '').trim()).filter(Boolean))];
+      const provider = providers[0] || '';
+      const combinedProductText = items.map(item => item.name).join(', ');
+      const total = items.reduce((acc, item) => acc + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
+      const quantity = items.reduce((acc, item) => acc + (Number(item.qty) || 1), 0);
+
+      nextOrders = [{
+        id: Date.now(),
+        client: quote.client?.name || '',
+        product: combinedProductText,
+        quantity,
+        unitPrice: total / Math.max(quantity, 1),
+        total,
+        provider,
+        supplierOrdered: false,
+        supplierReceived: false,
+        status: 'pendiente',
+        promisedDate: '',
+        deliveryDate: '',
+        paidAmount: 0,
+        notes: `Pedido completo desde presupuesto ${quote.id}`
+      }];
+    } else {
+      nextOrders = items.map((item, index) => buildOrderFromItem(item, index));
+    }
+
+    setOrders(prev => [...nextOrders, ...prev]);
+    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'order-created' } : q));
+    setCurrentView('orders');
+  };
   const setCategories = (n) => { setCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categories: n }, { merge: true }); };
   const setCategoryMargins = (n) => { setCategoryMarginsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categoryMargins: n }, { merge: true }); };
   const setExpenseCategories = (n) => { setExpenseCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { expenseCategories: n }, { merge: true }); };
@@ -5420,9 +5423,9 @@ export default function App() {
           {currentView === 'cashflow' && <CashFlowView sales={sales} purchases={purchases} transfers={transfers} setTransfers={setTransfers} accounts={accounts} searchTerm={searchTerm} />}
           {currentView === 'pnl' && <PnLView sales={sales} purchases={purchases} paymentBonuses={paymentBonuses} taxRules={taxRules} />}
           {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} products={products} paymentMethods={paymentMethods} />}
-          {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { setQuoteToConvert(quote); setCurrentView('sales'); }} onConvertToOrder={({ quote, mode }) => { setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'order-created' } : q)); setQuoteToOrder({ quote, mode }); setCurrentView('orders'); }} />}
+          {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { setQuoteToConvert(quote); setCurrentView('sales'); }} onConvertToOrder={(quote, mode) => handleConvertBudgetToOrders(quote, mode)} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
-          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} quoteToOrder={quoteToOrder} clearQuoteToOrder={() => setQuoteToOrder(null)} />}
+          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} />}
           {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
           {currentView === 'loans' && <LoansView loans={loans} setLoans={setLoans} sales={sales} setSales={setSales} paymentMethods={paymentMethods} />}
           {currentView === 'purchases' && <PurchasesView purchases={purchases} setPurchases={setPurchases} paymentMethods={paymentMethods} expenseCategories={expenseCategories} searchTerm={searchTerm} />}
