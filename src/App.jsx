@@ -4878,28 +4878,6 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
     }));
   };
 
-  useEffect(() => {
-    setOrders(prev => prev.map(order => {
-      const matchingSale = sales.find(sale => String(sale.id) === String(order.saleId) || Number(sale.sourceOrderId) === Number(order.id));
-      if (!matchingSale) return order;
-
-      const paidFromSale = (matchingSale.payments || []).reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
-      const effectiveTotal = Number(order.finalTotal ?? getEffectiveOrderTotal(order, paymentBonuses) ?? (Number(order.total) || 0));
-      const shouldMarkAsPaid = paidFromSale >= effectiveTotal;
-
-      if (Number(order.paidAmount || 0) === paidFromSale && order.status === (order.supplierReceived ? 'entregado' : shouldMarkAsPaid ? 'entregado' : order.supplierOrdered ? 'pedido' : 'pendiente')) {
-        return order;
-      }
-
-      return {
-        ...order,
-        paidAmount: paidFromSale,
-        finalTotal: effectiveTotal,
-        status: order.supplierReceived ? 'entregado' : shouldMarkAsPaid ? 'entregado' : order.supplierOrdered ? 'pedido' : 'pendiente'
-      };
-    }));
-  }, [sales, paymentBonuses, setOrders]);
-
   const handleSaveOrderDetails = (updatedOrder) => {
     const nextOrder = {
       ...updatedOrder,
@@ -5017,6 +4995,9 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
           updated.saleId = updated.saleId || `PED-${updated.id}`;
         }
 
+        updated.finalTotal = getEffectiveOrderTotal(updated, paymentBonuses);
+        updated.paymentBonus = getPaymentBonusValue(updated.paymentMethod, paymentBonuses);
+
         return updated;
       });
 
@@ -5080,6 +5061,19 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
       }
       return [salePayload, ...prev];
     });
+
+    setOrders(prev => prev.map(existingOrder => {
+      if (String(existingOrder.id) !== String(order.id)) return existingOrder;
+      return {
+        ...existingOrder,
+        ...order,
+        paymentMethod,
+        paymentBonus: bonus,
+        finalTotal: total,
+        paidAmount,
+        total: Number(existingOrder.total || order.total || 0)
+      };
+    }));
   };
 
   return (
