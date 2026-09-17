@@ -3399,13 +3399,37 @@ function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loa
   );
 }
 
-function SalesView({ sales, setSales, loans, setLoans, products, setProducts, paymentMethods, taxRules, categories, paymentBonuses, loanAdvances, quoteToConvert, clearQuoteToConvert, onSaleSaved }) {
+function SalesView({ sales, setSales, orders, setOrders, loans, setLoans, products, setProducts, paymentMethods, taxRules, categories, paymentBonuses, loanAdvances, quoteToConvert, clearQuoteToConvert, onSaleSaved }) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedSaleDetail, setSelectedSaleDetail] = useState(null);
+
+  const syncSalePaymentToOrder = (saleToSync) => {
+    if (!saleToSync || (!saleToSync.sourceOrderId && !saleToSync.id)) return;
+    setOrders(prev => prev.map(order => {
+      const matchesBySourceOrder = Number(order.id) === Number(saleToSync.sourceOrderId);
+      const matchesBySaleId = String(order.saleId || '') === String(saleToSync.id);
+      if (!matchesBySourceOrder && !matchesBySaleId) return order;
+
+      const paidAmount = (saleToSync.payments || []).reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+      const paymentMethod = (saleToSync.payments || [])[0]?.method || order.paymentMethod || 'Efectivo';
+      const paymentBonus = Number((saleToSync.payments || [])[0]?.bonus ?? getPaymentBonusValue(paymentMethod, paymentBonuses));
+      const finalTotal = Number(order.finalTotal ?? getEffectiveOrderTotal(order, paymentBonuses) ?? (Number(order.total) || 0));
+      const nextStatus = order.supplierReceived ? 'entregado' : paidAmount >= finalTotal ? 'entregado' : order.supplierOrdered ? 'pedido' : 'pendiente';
+
+      return {
+        ...order,
+        paidAmount,
+        paymentMethod,
+        paymentBonus,
+        finalTotal,
+        status: nextStatus
+      };
+    }));
+  };
 
   useEffect(() => {
     if (quoteToConvert) {
@@ -3438,13 +3462,19 @@ function SalesView({ sales, setSales, loans, setLoans, products, setProducts, pa
         )}
       </div>
 
-      {selectedSaleDetail && <SaleDetailModal sale={selectedSaleDetail} onClose={() => setSelectedSaleDetail(null)} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onUpdateSale={(updated) => { setSales(sales.map(s => s.id === updated.id ? updated : s)); setSelectedSaleDetail(updated); }} />}
+      {selectedSaleDetail && <SaleDetailModal sale={selectedSaleDetail} onClose={() => setSelectedSaleDetail(null)} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onUpdateSale={(updated) => {
+        setSales(sales.map(s => s.id === updated.id ? updated : s));
+        syncSalePaymentToOrder(updated);
+        setSelectedSaleDetail(updated);
+      }} />}
 
       {isAdding ? <NewSaleForm products={products} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} editingSale={editingSale} initialQuote={quoteToConvert} onClose={() => { setIsAdding(false); setEditingSale(null); if(clearQuoteToConvert) clearQuoteToConvert(); }} onSave={({ sale, loan }) => { 
           if (editingSale) {
              setSales(sales.map(s => s.id === sale.id ? sale : s));
+             syncSalePaymentToOrder(sale);
           } else {
              setSales([sale, ...sales]);
+             syncSalePaymentToOrder(sale);
              if (loan) setLoans([loan, ...loans]);
 
              // Descontar inventario automáticamente
@@ -5791,7 +5821,7 @@ export default function App() {
           {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { if (quote?.status === 'ordered' || quote?.status === 'order-created') return; setQuoteToConvert(quote); setCurrentView('sales'); }} onConvertToOrder={(quote, mode) => handleConvertBudgetToOrders(quote, mode)} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
           {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} sales={sales} setSales={setSales} paymentBonuses={paymentBonuses} paymentMethods={paymentMethods} />}
-          {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
+          {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} orders={orders} setOrders={setOrders} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
           {currentView === 'loans' && <LoansView loans={loans} setLoans={setLoans} sales={sales} setSales={setSales} paymentMethods={paymentMethods} />}
           {currentView === 'purchases' && <PurchasesView purchases={purchases} setPurchases={setPurchases} paymentMethods={paymentMethods} expenseCategories={expenseCategories} searchTerm={searchTerm} />}
           {currentView === 'labels' && <LabelPrinterView products={products} categories={categories} paymentBonuses={paymentBonuses} />}
