@@ -5603,22 +5603,29 @@ export default function App() {
       createdFromOrder: true
     }));
 
-    setSales(prev => {
-      const merged = [...generatedSales, ...prev];
+    const nextSales = (() => {
+      const merged = [...generatedSales, ...sales];
       const seen = new Map();
       merged.forEach(sale => {
         const key = sale.id || sale.sourceOrderId;
         if (!seen.has(key)) seen.set(key, sale);
       });
       return Array.from(seen.values());
-    });
+    })();
 
-    setOrdersLocal(prev => {
-      const mergedOrders = [...nextOrders, ...(Array.isArray(prev) ? prev : [])];
-      setDoc(doc(db, "sistema", "datosGenerales"), { pedidos: mergedOrders }, { merge: true });
-      return mergedOrders;
-    });
-    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'order-created', updatedAt: conversionDate } : q));
+    const nextQuoteState = quotes.map(q => q.id === quote.id ? { ...q, status: 'order-created', updatedAt: conversionDate } : q);
+    const mergedOrders = [...nextOrders, ...orders];
+
+    setSalesLocal(nextSales);
+    setOrdersLocal(mergedOrders);
+    setQuotesLocal(nextQuoteState);
+
+    setDoc(doc(db, "sistema", "datosGenerales"), {
+      ventas: nextSales,
+      pedidos: mergedOrders,
+      presupuestos: nextQuoteState
+    }, { merge: true });
+
     setCurrentView('orders');
   };
   const setCategories = (n) => { setCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categories: n }, { merge: true }); };
