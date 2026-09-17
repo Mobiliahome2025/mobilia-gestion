@@ -12,7 +12,7 @@ import {
   ChevronDown, PieChart, Info, Landmark, Sparkles, Loader2,
   Printer, Type, AlignLeft, AlignCenter, AlignRight, CheckSquare, PlusSquare,
   ArrowRightLeft, Banknote, Users, CalendarDays, Phone, ShieldAlert, AlertCircle, BadgeDollarSign, MessageCircle, Bell, BarChart2,
-  ClipboardList, Send, FileDown
+  ClipboardList, Send, FileDown, NotebookPen
 } from 'lucide-react';
 
 // --- CONSTANTES INICIALES ---
@@ -5502,7 +5502,7 @@ export default function App() {
   const handleConvertBudgetToOrders = (quote, mode = 'full') => {
     const items = quote?.items || [];
     if (!items.length) return;
-    if (quote?.status === 'ordered' || quote?.status === 'order-created') return;
+    if (quote?.status === 'ordered' || quote?.status === 'order-created' || quote?.status === 'converted') return;
 
     const conversionDate = new Date().toISOString().slice(0, 10);
 
@@ -5575,7 +5575,7 @@ export default function App() {
     }
 
     setOrders(prev => [...nextOrders, ...prev]);
-    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'ordered' } : q));
+    setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'order-created', updatedAt: conversionDate } : q));
     setCurrentView('orders');
   };
   const setCategories = (n) => { setCategoriesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { categories: n }, { merge: true }); };
