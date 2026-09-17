@@ -5494,9 +5494,11 @@ export default function App() {
   const setPurchases = (n) => { setPurchasesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { gastos: n }, { merge: true }); };
   const setTransfers = (n) => { setTransfersLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { transferencias: n }, { merge: true }); };
   const setOrders = (n) => {
-    const nextValue = typeof n === 'function' ? n(orders) : n;
-    setOrdersLocal(nextValue);
-    setDoc(doc(db, "sistema", "datosGenerales"), { pedidos: nextValue }, { merge: true });
+    setOrdersLocal(prev => {
+      const nextValue = typeof n === 'function' ? n(prev) : n;
+      setDoc(doc(db, "sistema", "datosGenerales"), { pedidos: nextValue }, { merge: true });
+      return nextValue;
+    });
   };
 
   const handleConvertBudgetToOrders = (quote, mode = 'full') => {
@@ -5611,7 +5613,11 @@ export default function App() {
       return Array.from(seen.values());
     });
 
-    setOrders(prev => [...nextOrders, ...prev]);
+    setOrdersLocal(prev => {
+      const mergedOrders = [...nextOrders, ...(Array.isArray(prev) ? prev : [])];
+      setDoc(doc(db, "sistema", "datosGenerales"), { pedidos: mergedOrders }, { merge: true });
+      return mergedOrders;
+    });
     setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'order-created', updatedAt: conversionDate } : q));
     setCurrentView('orders');
   };
