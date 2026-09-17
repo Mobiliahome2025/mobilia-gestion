@@ -4688,7 +4688,12 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
   );
 }
 
-function OrderDetailModal({ order, onClose, onSave, products = [] }) {
+function OrderDetailModal({ order, onClose, onSave, products = [], paymentMethods = [] }) {
+  const paymentOptions = useMemo(() => {
+    const configured = Array.isArray(paymentMethods) ? paymentMethods.map(pm => String(pm?.name || '').trim()).filter(Boolean) : [];
+    return configured.length ? configured : ['Efectivo', 'Transferencia', 'Tarjeta', 'Mercado Pago', 'Cuenta Corriente'];
+  }, [paymentMethods]);
+
   const [draft, setDraft] = useState({
     client: order?.client || '',
     product: order?.product || '',
@@ -4696,7 +4701,7 @@ function OrderDetailModal({ order, onClose, onSave, products = [] }) {
     unitPrice: Number(order?.unitPrice || 0),
     provider: order?.provider || '',
     paidAmount: Number(order?.paidAmount || 0),
-    paymentMethod: order?.paymentMethod || 'Efectivo',
+    paymentMethod: order?.paymentMethod || paymentOptions[0] || 'Efectivo',
     date: order?.date || new Date().toISOString().slice(0, 10),
     promisedDate: order?.promisedDate || '',
     supplierOrdered: Boolean(order?.supplierOrdered),
@@ -4780,11 +4785,9 @@ function OrderDetailModal({ order, onClose, onSave, products = [] }) {
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Medio de cobro</label>
               <select value={draft.paymentMethod} onChange={(e) => setDraft({ ...draft, paymentMethod: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]">
-                <option value="Efectivo">Efectivo</option>
-                <option value="Transferencia">Transferencia</option>
-                <option value="Tarjeta">Tarjeta</option>
-                <option value="Mercado Pago">Mercado Pago</option>
-                <option value="Cuenta Corriente">Cuenta Corriente</option>
+                {paymentOptions.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-2 flex items-center gap-3 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3">
@@ -4823,7 +4826,12 @@ function OrderDetailModal({ order, onClose, onSave, products = [] }) {
   );
 }
 
-function OrdersView({ orders, setOrders, products = [], sales = [], setSales = () => {}, paymentBonuses = [] }) {
+function OrdersView({ orders, setOrders, products = [], sales = [], setSales = () => {}, paymentBonuses = [], paymentMethods = [] }) {
+  const paymentOptions = useMemo(() => {
+    const configured = Array.isArray(paymentMethods) ? paymentMethods.map(pm => String(pm?.name || '').trim()).filter(Boolean) : [];
+    return configured.length ? configured : ['Efectivo', 'Transferencia', 'Tarjeta', 'Mercado Pago', 'Cuenta Corriente'];
+  }, [paymentMethods]);
+
   const [newOrder, setNewOrder] = useState({
     client: '',
     product: '',
@@ -4833,7 +4841,7 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
     supplierOrdered: false,
     supplierReceived: false,
     paidAmount: 0,
-    paymentMethod: 'Efectivo',
+    paymentMethod: paymentOptions[0] || 'Efectivo',
     date: new Date().toISOString().slice(0, 10),
     promisedDate: '',
     notes: ''
@@ -5080,6 +5088,7 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
         <OrderDetailModal
           order={selectedOrder}
           products={products}
+          paymentMethods={paymentMethods}
           onClose={() => setSelectedOrder(null)}
           onSave={handleSaveOrderDetails}
         />
@@ -5147,11 +5156,9 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
           <input type="date" value={newOrder.promisedDate} onChange={(e) => setNewOrder({ ...newOrder, promisedDate: e.target.value })} className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
           <input type="number" value={newOrder.paidAmount} onChange={(e) => setNewOrder({ ...newOrder, paidAmount: e.target.value })} placeholder="Cobrado" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
           <select value={newOrder.paymentMethod} onChange={(e) => setNewOrder({ ...newOrder, paymentMethod: e.target.value })} className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]">
-            <option value="Efectivo">Efectivo</option>
-            <option value="Transferencia">Transferencia</option>
-            <option value="Tarjeta">Tarjeta</option>
-            <option value="Mercado Pago">Mercado Pago</option>
-            <option value="Cuenta Corriente">Cuenta Corriente</option>
+            {paymentOptions.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
           </select>
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-600 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"><input type="checkbox" checked={newOrder.supplierOrdered} onChange={(e) => setNewOrder({ ...newOrder, supplierOrdered: e.target.checked })} /> Pedido</label>
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-600 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"><input type="checkbox" checked={newOrder.supplierReceived} onChange={(e) => setNewOrder({ ...newOrder, supplierReceived: e.target.checked })} /> Entregado</label>
@@ -5789,7 +5796,7 @@ export default function App() {
           {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} products={products} paymentMethods={paymentMethods} />}
           {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { if (quote?.status === 'ordered' || quote?.status === 'order-created') return; setQuoteToConvert(quote); setCurrentView('sales'); }} onConvertToOrder={(quote, mode) => handleConvertBudgetToOrders(quote, mode)} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
-          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} sales={sales} setSales={setSales} paymentBonuses={paymentBonuses} />}
+          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} sales={sales} setSales={setSales} paymentBonuses={paymentBonuses} paymentMethods={paymentMethods} />}
           {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
           {currentView === 'loans' && <LoansView loans={loans} setLoans={setLoans} sales={sales} setSales={setSales} paymentMethods={paymentMethods} />}
           {currentView === 'purchases' && <PurchasesView purchases={purchases} setPurchases={setPurchases} paymentMethods={paymentMethods} expenseCategories={expenseCategories} searchTerm={searchTerm} />}
