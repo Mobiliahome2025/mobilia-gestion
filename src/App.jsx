@@ -4674,7 +4674,142 @@ function LabelPrinterView({ products, categories, paymentBonuses }) {
   );
 }
 
-function OrdersView({ orders, setOrders, products = [] }) {
+function OrderDetailModal({ order, onClose, onSave, products = [] }) {
+  const [draft, setDraft] = useState({
+    client: order?.client || '',
+    product: order?.product || '',
+    quantity: Number(order?.quantity || 1),
+    unitPrice: Number(order?.unitPrice || 0),
+    provider: order?.provider || '',
+    paidAmount: Number(order?.paidAmount || 0),
+    paymentMethod: order?.paymentMethod || 'Efectivo',
+    date: order?.date || new Date().toISOString().slice(0, 10),
+    promisedDate: order?.promisedDate || '',
+    supplierOrdered: Boolean(order?.supplierOrdered),
+    supplierReceived: Boolean(order?.supplierReceived),
+    notes: order?.notes || ''
+  });
+
+  const productOptions = useMemo(() => {
+    return [...new Set(products.map(product => String(product?.name || '')).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
+  const handleSave = () => {
+    const quantity = Number(draft.quantity) || 1;
+    const unitPrice = Number(draft.unitPrice) || 0;
+    const nextStatus = draft.supplierReceived ? 'entregado' : draft.supplierOrdered ? 'pedido' : 'pendiente';
+
+    onSave({
+      ...order,
+      client: draft.client,
+      product: draft.product,
+      quantity,
+      unitPrice,
+      total: quantity * unitPrice,
+      provider: draft.provider,
+      paidAmount: Number(draft.paidAmount) || 0,
+      paymentMethod: draft.paymentMethod,
+      date: draft.date,
+      promisedDate: draft.promisedDate,
+      supplierOrdered: Boolean(draft.supplierOrdered),
+      supplierReceived: Boolean(draft.supplierReceived),
+      status: nextStatus,
+      notes: draft.notes
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2rem] w-full max-w-4xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+        <div className="bg-black p-6 flex justify-between items-center text-white shrink-0">
+          <h3 className="font-bold uppercase tracking-widest text-xs flex items-center gap-2"><PackagePlus className="w-5 h-5 text-[#b5a898]" /> Editar Pedido #{String(order?.id || '')}</h3>
+          <button onClick={onClose} className="hover:text-[#b5a898] transition"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-8 overflow-y-auto flex-1 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Cliente</label>
+              <input value={draft.client} onChange={(e) => setDraft({ ...draft, client: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Fecha de pedido</label>
+              <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Producto</label>
+              <input list="order-product-edit-list" value={draft.product} onChange={(e) => setDraft({ ...draft, product: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+              <datalist id="order-product-edit-list">
+                {productOptions.map(product => <option key={product} value={product} />)}
+              </datalist>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Proveedor</label>
+              <input value={draft.provider} onChange={(e) => setDraft({ ...draft, provider: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Fecha estimada de entrega</label>
+              <input type="date" value={draft.promisedDate} onChange={(e) => setDraft({ ...draft, promisedDate: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Cantidad</label>
+              <input type="number" min="1" value={draft.quantity} onChange={(e) => setDraft({ ...draft, quantity: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Precio unitario</label>
+              <input type="number" step="0.01" value={draft.unitPrice} onChange={(e) => setDraft({ ...draft, unitPrice: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Cobrado</label>
+              <input type="number" step="0.01" value={draft.paidAmount} onChange={(e) => setDraft({ ...draft, paidAmount: e.target.value })} className="w-full bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Medio de cobro</label>
+              <select value={draft.paymentMethod} onChange={(e) => setDraft({ ...draft, paymentMethod: e.target.value })} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]">
+                <option value="Efectivo">Efectivo</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Tarjeta">Tarjeta</option>
+                <option value="Mercado Pago">Mercado Pago</option>
+                <option value="Cuenta Corriente">Cuenta Corriente</option>
+              </select>
+            </div>
+            <div className="space-y-2 flex items-center gap-3 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3">
+              <input type="checkbox" checked={draft.supplierOrdered} onChange={(e) => setDraft({ ...draft, supplierOrdered: e.target.checked })} className="accent-[#b5a898] h-4 w-4" />
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Pedido al proveedor</label>
+            </div>
+            <div className="space-y-2 flex items-center gap-3 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3">
+              <input type="checkbox" checked={draft.supplierReceived} onChange={(e) => setDraft({ ...draft, supplierReceived: e.target.checked })} className="accent-emerald-600 h-4 w-4" />
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Recibido</label>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Observaciones</label>
+            <textarea value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} rows="3" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+          </div>
+
+          <div className="bg-stone-50 border border-stone-200 rounded-[1.5rem] p-6 flex justify-between items-center">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Total del pedido</p>
+              <p className="text-2xl font-black text-stone-900">{formatCurrency((Number(draft.quantity) || 0) * (Number(draft.unitPrice) || 0))}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Saldo</p>
+              <p className="text-2xl font-black text-rose-600">{formatCurrency(((Number(draft.quantity) || 0) * (Number(draft.unitPrice) || 0)) - (Number(draft.paidAmount) || 0))}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 border-t border-stone-200 shrink-0 flex justify-end gap-3">
+          <button onClick={onClose} className="bg-stone-100 text-stone-600 px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-200 transition">Cancelar</button>
+          <button onClick={handleSave} className="bg-[#b5a898] text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-md hover:bg-[#a39686] transition">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrdersView({ orders, setOrders, products = [], sales = [], setSales = () => {} }) {
   const [newOrder, setNewOrder] = useState({
     client: '',
     product: '',
@@ -4684,11 +4819,14 @@ function OrdersView({ orders, setOrders, products = [] }) {
     supplierOrdered: false,
     supplierReceived: false,
     paidAmount: 0,
+    paymentMethod: 'Efectivo',
+    date: new Date().toISOString().slice(0, 10),
     promisedDate: '',
     notes: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const productLookup = useMemo(() => {
     return products.reduce((acc, product) => {
@@ -4716,6 +4854,16 @@ function OrdersView({ orders, setOrders, products = [] }) {
       provider: matchedProduct?.supplier || prev.provider,
       unitPrice: matchedProduct ? (Number(matchedProduct.price) || Number(matchedProduct.cost) || prev.unitPrice) : prev.unitPrice
     }));
+  };
+
+  const handleSaveOrderDetails = (updatedOrder) => {
+    setOrders(prev => {
+      const nextOrders = prev.map(order => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order);
+      const saved = nextOrders.find(order => order.id === updatedOrder.id);
+      if (saved) syncOrderToSale(saved);
+      return nextOrders;
+    });
+    setSelectedOrder(null);
   };
 
   const totals = useMemo(() => {
@@ -4751,6 +4899,7 @@ function OrdersView({ orders, setOrders, products = [] }) {
 
     const created = {
       id: Date.now(),
+      saleId: `PED-${Date.now()}`,
       client: newOrder.client,
       product: newOrder.product,
       quantity,
@@ -4760,13 +4909,16 @@ function OrdersView({ orders, setOrders, products = [] }) {
       supplierOrdered: Boolean(newOrder.supplierOrdered),
       supplierReceived: Boolean(newOrder.supplierReceived),
       status,
+      date: newOrder.date || new Date().toISOString().slice(0, 10),
       promisedDate: newOrder.promisedDate,
       deliveryDate: newOrder.supplierReceived ? (newOrder.promisedDate || new Date().toISOString().slice(0, 10)) : '',
       paidAmount: Number(newOrder.paidAmount) || 0,
+      paymentMethod: newOrder.paymentMethod || 'Efectivo',
       notes: newOrder.notes
     };
 
     setOrders([created, ...orders]);
+    syncOrderToSale(created);
     setNewOrder({
       client: '',
       product: '',
@@ -4776,36 +4928,48 @@ function OrdersView({ orders, setOrders, products = [] }) {
       supplierOrdered: false,
       supplierReceived: false,
       paidAmount: 0,
+      paymentMethod: 'Efectivo',
+      date: new Date().toISOString().slice(0, 10),
       promisedDate: '',
       notes: ''
     });
   };
 
   const updateOrder = (id, field, value) => {
-    setOrders(prev => prev.map(order => {
-      if (order.id !== id) return order;
+    setOrders(prev => {
+      const nextOrders = prev.map(order => {
+        if (order.id !== id) return order;
 
-      const updated = { ...order, [field]: value };
+        const updated = { ...order, [field]: value };
 
-      if (field === 'supplierReceived' && value === true) {
-        updated.status = 'entregado';
-        updated.deliveryDate = updated.deliveryDate || updated.promisedDate || new Date().toISOString().slice(0, 10);
-      }
+        if (field === 'supplierReceived' && value === true) {
+          updated.status = 'entregado';
+          updated.deliveryDate = updated.deliveryDate || updated.promisedDate || new Date().toISOString().slice(0, 10);
+        }
 
-      if (field === 'supplierOrdered' && value === true && !updated.supplierReceived) {
-        updated.status = 'pedido';
-      }
+        if (field === 'supplierOrdered' && value === true && !updated.supplierReceived) {
+          updated.status = 'pedido';
+        }
 
-      if (field === 'supplierOrdered' && value === false && !updated.supplierReceived) {
-        updated.status = 'pendiente';
-      }
+        if (field === 'supplierOrdered' && value === false && !updated.supplierReceived) {
+          updated.status = 'pendiente';
+        }
 
-      if (field === 'supplierReceived' && value === false) {
-        updated.status = updated.supplierOrdered ? 'pedido' : 'pendiente';
-      }
+        if (field === 'supplierReceived' && value === false) {
+          updated.status = updated.supplierOrdered ? 'pedido' : 'pendiente';
+        }
 
-      return updated;
-    }));
+        if (field === 'paidAmount' && updated.paymentMethod) {
+          updated.saleId = updated.saleId || `PED-${updated.id}`;
+        }
+
+        return updated;
+      });
+
+      const updatedOrder = nextOrders.find(order => order.id === id);
+      if (updatedOrder) syncOrderToSale(updatedOrder);
+      return nextOrders;
+    });
   };
 
   const deleteOrder = (id) => {
@@ -4818,8 +4982,62 @@ function OrdersView({ orders, setOrders, products = [] }) {
     entregado: 'bg-emerald-100 text-emerald-700'
   };
 
+  const syncOrderToSale = (order) => {
+    if (!order || !order.product) return;
+
+    const total = Number(order.total || 0);
+    const paidAmount = Number(order.paidAmount || 0);
+    const paymentMethod = order.paymentMethod || 'Efectivo';
+    const saleDate = order.date || order.promisedDate || order.deliveryDate || new Date().toISOString().slice(0, 10);
+    const saleId = order.saleId || `PED-${order.id}`;
+
+    const salePayload = {
+      id: saleId,
+      sourceOrderId: order.id,
+      date: saleDate,
+      total,
+      items: [{
+        id: `order-item-${order.id}`,
+        productId: order.productId || null,
+        name: String(order.product || ''),
+        category: 'Pedido',
+        price: Number(order.unitPrice) || 0,
+        qty: Number(order.quantity) || 1,
+        cost: 0,
+        iva: 0
+      }],
+      payments: paidAmount > 0 ? [{
+        id: `order-payment-${order.id}`,
+        method: paymentMethod,
+        amount: paidAmount,
+        date: saleDate,
+        bonus: 0,
+        note: `Cobro de pedido #${String(order.id)}`
+      }] : [],
+      type: 'regular',
+      createdFromOrder: true
+    };
+
+    setSales(prev => {
+      const existingIndex = prev.findIndex(sale => sale.id === saleId || sale.sourceOrderId === order.id);
+      if (existingIndex >= 0) {
+        return prev.map((sale, index) => index === existingIndex ? { ...sale, ...salePayload, items: salePayload.items, payments: salePayload.payments, total, date: saleDate } : sale);
+      }
+      return [salePayload, ...prev];
+    });
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          products={products}
+          onClose={() => setSelectedOrder(null)}
+          onSave={handleSaveOrderDetails}
+        />
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
         <StatCard title="Pendiente de entrega" value={formatCurrency(totals.pendingDelivery)} icon={<Package className="w-5 h-5" />} color="grey" />
         <StatCard title="Sin pedir al proveedor" value={formatCurrency(totals.pendingSupplier)} icon={<ShoppingBag className="w-5 h-5" />} color="red" />
@@ -4881,6 +5099,13 @@ function OrdersView({ orders, setOrders, products = [] }) {
 
           <input type="date" value={newOrder.promisedDate} onChange={(e) => setNewOrder({ ...newOrder, promisedDate: e.target.value })} className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
           <input type="number" value={newOrder.paidAmount} onChange={(e) => setNewOrder({ ...newOrder, paidAmount: e.target.value })} placeholder="Cobrado" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]" />
+          <select value={newOrder.paymentMethod} onChange={(e) => setNewOrder({ ...newOrder, paymentMethod: e.target.value })} className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898]">
+            <option value="Efectivo">Efectivo</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Tarjeta">Tarjeta</option>
+            <option value="Mercado Pago">Mercado Pago</option>
+            <option value="Cuenta Corriente">Cuenta Corriente</option>
+          </select>
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-600 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"><input type="checkbox" checked={newOrder.supplierOrdered} onChange={(e) => setNewOrder({ ...newOrder, supplierOrdered: e.target.checked })} /> Pedido</label>
           <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-600 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3"><input type="checkbox" checked={newOrder.supplierReceived} onChange={(e) => setNewOrder({ ...newOrder, supplierReceived: e.target.checked })} /> Entregado</label>
           <input value={newOrder.notes} onChange={(e) => setNewOrder({ ...newOrder, notes: e.target.value })} placeholder="Observaciones" className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#b5a898] xl:col-span-2" />
@@ -4909,12 +5134,12 @@ function OrdersView({ orders, setOrders, products = [] }) {
                 <th className="p-4 text-left">Cliente</th>
                 <th className="p-4 text-left">Producto</th>
                 <th className="p-4 text-left">Proveedor</th>
-                <th className="p-4 text-center">Fecha</th>
                 <th className="p-4 text-center">Pedido</th>
                 <th className="p-4 text-center">Entrega</th>
                 <th className="p-4 text-right">Total</th>
                 <th className="p-4 text-right">Cobrado</th>
                 <th className="p-4 text-right">Saldo</th>
+                <th className="p-4 text-center">Venta</th>
                 <th className="p-4 text-center">Estado</th>
                 <th className="p-4 text-center">Acciones</th>
               </tr>
@@ -4926,31 +5151,37 @@ function OrdersView({ orders, setOrders, products = [] }) {
                   <tr key={order.id} className="border-b border-stone-100 align-top hover:bg-stone-50 transition">
                     <td className="p-4">
                       <p className="font-black text-stone-800">{order.client}</p>
-                      <p className="text-[10px] uppercase text-stone-400">{order.promisedDate || 'Sin fecha'}</p>
+                      <p className="text-[10px] uppercase text-stone-400">{order.date || 'Sin fecha de pedido'}</p>
                     </td>
                     <td className="p-4">
                       <p className="font-bold text-stone-800">{order.product}</p>
                       <p className="text-[10px] text-stone-500">{order.quantity} u · {formatCurrency(order.unitPrice)}</p>
                     </td>
-                    <td className="p-4 font-bold text-stone-600">{order.provider}</td>
+                    <td className="p-4">
+                      <p className="font-bold text-stone-600">{order.provider || 'Sin proveedor'}</p>
+                      <p className="text-[10px] uppercase text-stone-400">{order.productId ? 'Producto asociado' : 'Sin producto'}</p>
+                    </td>
+                    <td className="p-4 text-center text-[10px] font-bold text-stone-500">
+                      {order.date || '—'}
+                    </td>
                     <td className="p-4 text-center text-[10px] font-bold text-stone-500">
                       {order.promisedDate || '—'}
-                    </td>
-                    <td className="p-4 text-center">
-                      <input type="checkbox" checked={!!order.supplierOrdered} onChange={(e) => updateOrder(order.id, 'supplierOrdered', e.target.checked)} className="accent-[#b5a898] h-4 w-4" />
-                    </td>
-                    <td className="p-4 text-center">
-                      <input type="checkbox" checked={!!order.supplierReceived} onChange={(e) => updateOrder(order.id, 'supplierReceived', e.target.checked)} className="accent-emerald-600 h-4 w-4" />
                     </td>
                     <td className="p-4 text-right font-black text-stone-800">{formatCurrency(order.total)}</td>
                     <td className="p-4 text-right">
                       <input type="number" value={order.paidAmount || 0} onChange={(e) => updateOrder(order.id, 'paidAmount', Number(e.target.value) || 0)} className="w-24 bg-stone-50 border border-stone-200 rounded-lg px-2 py-2 text-right font-bold text-emerald-700 outline-none focus:ring-2 focus:ring-[#b5a898]" />
                     </td>
                     <td className={`p-4 text-right font-black ${saldo > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatCurrency(saldo)}</td>
+                    <td className="p-4 text-center">
+                      <span className="inline-flex px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest bg-stone-100 text-stone-600">
+                        {order.saleId || 'Sin venta'}
+                      </span>
+                    </td>
                     <td className="p-4 text-center"><span className={`inline-flex px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${statusColors[order.status] || 'bg-stone-100 text-stone-700'}`}>{order.status}</span></td>
                     <td className="p-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => updateOrder(order.id, 'notes', prompt('Observación:', order.notes || '') || order.notes)} className="text-stone-400 hover:text-[#b5a898] transition" title="Editar observación"><FileText className="w-4 h-4" /></button>
+                        <button onClick={() => setSelectedOrder(order)} className="text-stone-400 hover:text-[#b5a898] transition" title="Editar detalle"><FileText className="w-4 h-4" /></button>
+                        <button onClick={() => updateOrder(order.id, 'notes', prompt('Observación:', order.notes || '') || order.notes)} className="text-stone-400 hover:text-[#b5a898] transition" title="Editar observación"><NotebookPen className="w-4 h-4" /></button>
                         <button onClick={() => deleteOrder(order.id)} className="text-stone-400 hover:text-red-500 transition" title="Eliminar pedido"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
@@ -5273,25 +5504,39 @@ export default function App() {
     if (!items.length) return;
     if (quote?.status === 'ordered' || quote?.status === 'order-created') return;
 
-    const buildOrderFromItem = (item, index) => {
+    const conversionDate = new Date().toISOString().slice(0, 10);
+
+    const resolveProduct = (item) => {
       const product = products.find(p => p.id === item.productId || p.name === item.name);
+      return {
+        product,
+        supplier: String(product?.supplier || item.provider || item.supplier || 'Sin proveedor').trim() || 'Sin proveedor'
+      };
+    };
+
+    const buildOrderFromItem = (item, index) => {
+      const { product, supplier } = resolveProduct(item);
       const quantity = Number(item.qty) || 1;
       const unitPrice = Number(item.price) || 0;
 
       return {
         id: Date.now() + index + Math.random(),
+        saleId: `PED-${Date.now() + index + Math.random()}`,
         client: quote.client?.name || '',
         product: String(item.name || ''),
         quantity,
         unitPrice,
         total: quantity * unitPrice,
-        provider: String(item.provider || item.supplier || product?.supplier || ''),
+        provider: supplier,
+        productId: product?.id || item.productId || null,
         supplierOrdered: false,
         supplierReceived: false,
         status: 'pendiente',
+        date: conversionDate,
         promisedDate: '',
         deliveryDate: '',
         paidAmount: 0,
+        paymentMethod: 'Efectivo',
         notes: `Creado desde presupuesto ${quote.id}`
       };
     };
@@ -5299,14 +5544,16 @@ export default function App() {
     let nextOrders = [];
 
     if (mode === 'full') {
-      const providers = [...new Set(items.map(item => String(item.provider || item.supplier || '').trim()).filter(Boolean))];
-      const provider = providers[0] || '';
+      const resolvedItems = items.map(item => ({ ...item, ...resolveProduct(item) }));
+      const providers = [...new Set(resolvedItems.map(item => String(item.supplier || '').trim()).filter(Boolean))];
+      const provider = providers[0] || 'Sin proveedor';
       const combinedProductText = items.map(item => item.name).join(', ');
       const total = items.reduce((acc, item) => acc + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
       const quantity = items.reduce((acc, item) => acc + (Number(item.qty) || 1), 0);
 
       nextOrders = [{
         id: Date.now(),
+        saleId: `PED-${Date.now()}`,
         client: quote.client?.name || '',
         product: combinedProductText,
         quantity,
@@ -5316,9 +5563,11 @@ export default function App() {
         supplierOrdered: false,
         supplierReceived: false,
         status: 'pendiente',
+        date: conversionDate,
         promisedDate: '',
         deliveryDate: '',
         paidAmount: 0,
+        paymentMethod: 'Efectivo',
         notes: `Pedido completo desde presupuesto ${quote.id}`
       }];
     } else {
@@ -5427,7 +5676,7 @@ export default function App() {
           {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} products={products} paymentMethods={paymentMethods} />}
           {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { if (quote?.status === 'ordered' || quote?.status === 'order-created') return; setQuoteToConvert(quote); setCurrentView('sales'); }} onConvertToOrder={(quote, mode) => handleConvertBudgetToOrders(quote, mode)} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
-          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} />}
+          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} sales={sales} setSales={setSales} />}
           {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
           {currentView === 'loans' && <LoansView loans={loans} setLoans={setLoans} sales={sales} setSales={setSales} paymentMethods={paymentMethods} />}
           {currentView === 'purchases' && <PurchasesView purchases={purchases} setPurchases={setPurchases} paymentMethods={paymentMethods} expenseCategories={expenseCategories} searchTerm={searchTerm} />}
