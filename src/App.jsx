@@ -5574,6 +5574,43 @@ export default function App() {
       nextOrders = items.map((item, index) => buildOrderFromItem(item, index));
     }
 
+    const generatedSales = nextOrders.map((order) => ({
+      id: order.saleId || `PED-${order.id}`,
+      sourceOrderId: order.id,
+      date: order.date || conversionDate,
+      total: Number(order.total || 0),
+      items: [{
+        id: `order-item-${order.id}`,
+        productId: order.productId || null,
+        name: String(order.product || ''),
+        category: 'Pedido',
+        price: Number(order.unitPrice) || 0,
+        qty: Number(order.quantity) || 1,
+        cost: 0,
+        iva: 0
+      }],
+      payments: Number(order.paidAmount || 0) > 0 ? [{
+        id: `order-payment-${order.id}`,
+        method: order.paymentMethod || 'Efectivo',
+        amount: Number(order.paidAmount || 0),
+        date: order.date || conversionDate,
+        bonus: 0,
+        note: `Cobro de pedido #${String(order.id)}`
+      }] : [],
+      type: 'regular',
+      createdFromOrder: true
+    }));
+
+    setSales(prev => {
+      const merged = [...generatedSales, ...prev];
+      const seen = new Map();
+      merged.forEach(sale => {
+        const key = sale.id || sale.sourceOrderId;
+        if (!seen.has(key)) seen.set(key, sale);
+      });
+      return Array.from(seen.values());
+    });
+
     setOrders(prev => [...nextOrders, ...prev]);
     setQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, status: 'order-created', updatedAt: conversionDate } : q));
     setCurrentView('orders');
