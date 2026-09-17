@@ -111,6 +111,20 @@ const findDuplicateGroups = (products) => {
 
 const normalizeKey = (v) => String(v || '').trim().toLowerCase();
 
+const getPaymentBonusValue = (method, paymentBonuses = []) => {
+  const safeMethod = String(method || 'Efectivo').trim().toLowerCase();
+  return Number(paymentBonuses.find(b => String(b.method || '').trim().toLowerCase() === safeMethod)?.value || 0);
+};
+
+const getEffectiveOrderTotal = (orderLike = {}, paymentBonuses = []) => {
+  const baseTotal = Number(orderLike.total || 0);
+  const qty = Number(orderLike.quantity || 1);
+  const price = Number(orderLike.unitPrice || 0);
+  const listTotal = baseTotal > 0 ? baseTotal : (qty * price);
+  const bonus = getPaymentBonusValue(orderLike.paymentMethod, paymentBonuses);
+  return Number((listTotal * (1 - (bonus / 100))).toFixed(2));
+};
+
 // Agrupa valores de texto que son iguales salvo mayúsculas/minúsculas o espacios,
 // devolviendo cada variante encontrada con su cantidad de apariciones.
 const groupSimilarValues = (values) => {
@@ -4809,7 +4823,7 @@ function OrderDetailModal({ order, onClose, onSave, products = [] }) {
   );
 }
 
-function OrdersView({ orders, setOrders, products = [], sales = [], setSales = () => {} }) {
+function OrdersView({ orders, setOrders, products = [], sales = [], setSales = () => {}, paymentBonuses = [] }) {
   const [newOrder, setNewOrder] = useState({
     client: '',
     product: '',
@@ -4856,10 +4870,38 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
     }));
   };
 
+  useEffect(() => {
+    setOrders(prev => prev.map(order => {
+      const matchingSale = sales.find(sale => String(sale.id) === String(order.saleId) || Number(sale.sourceOrderId) === Number(order.id));
+      if (!matchingSale) return order;
+
+      const paidFromSale = (matchingSale.payments || []).reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+      const effectiveTotal = Number(order.finalTotal ?? getEffectiveOrderTotal(order, paymentBonuses) ?? (Number(order.total) || 0));
+      const shouldMarkAsPaid = paidFromSale >= effectiveTotal;
+
+      if (Number(order.paidAmount || 0) === paidFromSale && order.status === (order.supplierReceived ? 'entregado' : shouldMarkAsPaid ? 'entregado' : order.supplierOrdered ? 'pedido' : 'pendiente')) {
+        return order;
+      }
+
+      return {
+        ...order,
+        paidAmount: paidFromSale,
+        finalTotal: effectiveTotal,
+        status: order.supplierReceived ? 'entregado' : shouldMarkAsPaid ? 'entregado' : order.supplierOrdered ? 'pedido' : 'pendiente'
+      };
+    }));
+  }, [sales, paymentBonuses, setOrders]);
+
   const handleSaveOrderDetails = (updatedOrder) => {
+    const nextOrder = {
+      ...updatedOrder,
+      paymentBonus: getPaymentBonusValue(updatedOrder.paymentMethod, paymentBonuses),
+      finalTotal: getEffectiveOrderTotal(updatedOrder, paymentBonuses)
+    };
+
     setOrders(prev => {
-      const nextOrders = prev.map(order => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order);
-      const saved = nextOrders.find(order => order.id === updatedOrder.id);
+      const nextOrders = prev.map(order => order.id === nextOrder.id ? { ...order, ...nextOrder } : order);
+      const saved = nextOrders.find(order => order.id === nextOrder.id);
       if (saved) syncOrderToSale(saved);
       return nextOrders;
     });
@@ -4894,7 +4936,9 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
 
     const quantity = Number(newOrder.quantity) || 1;
     const unitPrice = Number(newOrder.unitPrice) || 0;
-    const total = quantity * unitPrice;
+    const baseTotal = quantity * unitPrice;
+    const paymentMethod = newOrder.paymentMethod || 'Efectivo';
+    const finalTotal = getEffectiveOrderTotal({ total: baseTotal, quantity, unitPrice, paymentMethod }, paymentBonuses);
     const status = newOrder.supplierReceived ? 'entregado' : newOrder.supplierOrdered ? 'pedido' : 'pendiente';
 
     const created = {
@@ -4904,7 +4948,8 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
       product: newOrder.product,
       quantity,
       unitPrice,
-      total,
+      total: baseTotal,
+      finalTotal,
       provider: newOrder.provider,
       supplierOrdered: Boolean(newOrder.supplierOrdered),
       supplierReceived: Boolean(newOrder.supplierReceived),
@@ -4913,7 +4958,8 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
       promisedDate: newOrder.promisedDate,
       deliveryDate: newOrder.supplierReceived ? (newOrder.promisedDate || new Date().toISOString().slice(0, 10)) : '',
       paidAmount: Number(newOrder.paidAmount) || 0,
-      paymentMethod: newOrder.paymentMethod || 'Efectivo',
+      paymentMethod,
+      paymentBonus: getPaymentBonusValue(paymentMethod, paymentBonuses),
       notes: newOrder.notes
     };
 
@@ -4985,11 +5031,12 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
   const syncOrderToSale = (order) => {
     if (!order || !order.product) return;
 
-    const total = Number(order.total || 0);
+    const total = Number(order.finalTotal ?? getEffectiveOrderTotal(order, paymentBonuses) ?? (Number(order.total) || 0));
     const paidAmount = Number(order.paidAmount || 0);
     const paymentMethod = order.paymentMethod || 'Efectivo';
     const saleDate = order.date || order.promisedDate || order.deliveryDate || new Date().toISOString().slice(0, 10);
     const saleId = order.saleId || `PED-${order.id}`;
+    const bonus = Number(order.paymentBonus ?? getPaymentBonusValue(paymentMethod, paymentBonuses));
 
     const salePayload = {
       id: saleId,
@@ -5011,7 +5058,7 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
         method: paymentMethod,
         amount: paidAmount,
         date: saleDate,
-        bonus: 0,
+        bonus,
         note: `Cobro de pedido #${String(order.id)}`
       }] : [],
       type: 'regular',
@@ -5146,7 +5193,8 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
             </thead>
             <tbody>
               {filteredOrders.map((order) => {
-                const saldo = Number(order.total || 0) - Number(order.paidAmount || 0);
+                const effectiveTotal = Number(order.finalTotal ?? getEffectiveOrderTotal(order, paymentBonuses) ?? (Number(order.total) || 0));
+                const saldo = effectiveTotal - Number(order.paidAmount || 0);
                 return (
                   <tr key={order.id} className="border-b border-stone-100 align-top hover:bg-stone-50 transition">
                     <td className="p-4">
@@ -5167,7 +5215,12 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
                     <td className="p-4 text-center text-[10px] font-bold text-stone-500">
                       {order.promisedDate || '—'}
                     </td>
-                    <td className="p-4 text-right font-black text-stone-800">{formatCurrency(order.total)}</td>
+                    <td className="p-4 text-right font-black text-stone-800">
+                      <div className="flex flex-col items-end">
+                        <span className="text-stone-800">{formatCurrency(effectiveTotal)}</span>
+                        <span className="text-[8px] uppercase tracking-widest text-stone-400">{order.paymentMethod || 'Efectivo'} {order.paymentBonus ? `(-${order.paymentBonus}%)` : ''}</span>
+                      </div>
+                    </td>
                     <td className="p-4 text-right">
                       <input type="number" value={order.paidAmount || 0} onChange={(e) => updateOrder(order.id, 'paidAmount', Number(e.target.value) || 0)} className="w-24 bg-stone-50 border border-stone-200 rounded-lg px-2 py-2 text-right font-bold text-emerald-700 outline-none focus:ring-2 focus:ring-[#b5a898]" />
                     </td>
@@ -5507,6 +5560,7 @@ export default function App() {
     if (quote?.status === 'ordered' || quote?.status === 'order-created' || quote?.status === 'converted') return;
 
     const conversionDate = new Date().toISOString().slice(0, 10);
+    const preferredMethod = String(quote?.paymentOptions?.[0] || 'Efectivo');
 
     const resolveProduct = (item) => {
       const product = products.find(p => p.id === item.productId || p.name === item.name);
@@ -5520,6 +5574,9 @@ export default function App() {
       const { product, supplier } = resolveProduct(item);
       const quantity = Number(item.qty) || 1;
       const unitPrice = Number(item.price) || 0;
+      const baseTotal = quantity * unitPrice;
+      const paymentMethod = preferredMethod;
+      const finalTotal = getEffectiveOrderTotal({ total: baseTotal, quantity, unitPrice, paymentMethod }, paymentBonuses);
 
       return {
         id: Date.now() + index + Math.random(),
@@ -5528,7 +5585,8 @@ export default function App() {
         product: String(item.name || ''),
         quantity,
         unitPrice,
-        total: quantity * unitPrice,
+        total: baseTotal,
+        finalTotal,
         provider: supplier,
         productId: product?.id || item.productId || null,
         supplierOrdered: false,
@@ -5538,7 +5596,8 @@ export default function App() {
         promisedDate: '',
         deliveryDate: '',
         paidAmount: 0,
-        paymentMethod: 'Efectivo',
+        paymentMethod,
+        paymentBonus: getPaymentBonusValue(paymentMethod, paymentBonuses),
         notes: `Creado desde presupuesto ${quote.id}`
       };
     };
@@ -5552,6 +5611,8 @@ export default function App() {
       const combinedProductText = items.map(item => item.name).join(', ');
       const total = items.reduce((acc, item) => acc + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
       const quantity = items.reduce((acc, item) => acc + (Number(item.qty) || 1), 0);
+      const paymentMethod = preferredMethod;
+      const finalTotal = getEffectiveOrderTotal({ total, quantity, unitPrice: total / Math.max(quantity, 1), paymentMethod }, paymentBonuses);
 
       nextOrders = [{
         id: Date.now(),
@@ -5561,6 +5622,7 @@ export default function App() {
         quantity,
         unitPrice: total / Math.max(quantity, 1),
         total,
+        finalTotal,
         provider,
         supplierOrdered: false,
         supplierReceived: false,
@@ -5569,7 +5631,8 @@ export default function App() {
         promisedDate: '',
         deliveryDate: '',
         paidAmount: 0,
-        paymentMethod: 'Efectivo',
+        paymentMethod,
+        paymentBonus: getPaymentBonusValue(paymentMethod, paymentBonuses),
         notes: `Pedido completo desde presupuesto ${quote.id}`
       }];
     } else {
@@ -5580,7 +5643,7 @@ export default function App() {
       id: order.saleId || `PED-${order.id}`,
       sourceOrderId: order.id,
       date: order.date || conversionDate,
-      total: Number(order.total || 0),
+      total: Number(order.finalTotal || order.total || 0),
       items: [{
         id: `order-item-${order.id}`,
         productId: order.productId || null,
@@ -5596,7 +5659,7 @@ export default function App() {
         method: order.paymentMethod || 'Efectivo',
         amount: Number(order.paidAmount || 0),
         date: order.date || conversionDate,
-        bonus: 0,
+        bonus: Number(order.paymentBonus || 0),
         note: `Cobro de pedido #${String(order.id)}`
       }] : [],
       type: 'regular',
@@ -5726,7 +5789,7 @@ export default function App() {
           {currentView === 'profitability' && <ProfitabilityView sales={sales} taxRules={taxRules} paymentBonuses={paymentBonuses} searchTerm={searchTerm} products={products} paymentMethods={paymentMethods} />}
           {currentView === 'quotes' && <QuotesView quotes={quotes} setQuotes={setQuotes} products={products} categories={categories} paymentMethods={paymentMethods} paymentBonuses={paymentBonuses} onConvertToSale={(quote) => { if (quote?.status === 'ordered' || quote?.status === 'order-created') return; setQuoteToConvert(quote); setCurrentView('sales'); }} onConvertToOrder={(quote, mode) => handleConvertBudgetToOrders(quote, mode)} />}
           {currentView === 'inventory' && <InventoryView products={products} setProducts={setProducts} categories={categories} categoryMargins={categoryMargins} searchTerm={searchTerm} sales={sales} />}
-          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} sales={sales} setSales={setSales} />}
+          {currentView === 'orders' && <OrdersView orders={orders} setOrders={setOrders} products={products} sales={sales} setSales={setSales} paymentBonuses={paymentBonuses} />}
           {currentView === 'sales' && <SalesView sales={sales} setSales={setSales} loans={loans} setLoans={setLoans} products={products} setProducts={setProducts} paymentMethods={paymentMethods} taxRules={taxRules} categories={categories} paymentBonuses={paymentBonuses} loanAdvances={loanAdvances} quoteToConvert={quoteToConvert} clearQuoteToConvert={() => setQuoteToConvert(null)} onSaleSaved={() => { if(quoteToConvert) { setQuotes(quotes.map(q => q.id === quoteToConvert.id ? {...q, status: 'converted'} : q)); setQuoteToConvert(null); } }} />}
           {currentView === 'loans' && <LoansView loans={loans} setLoans={setLoans} sales={sales} setSales={setSales} paymentMethods={paymentMethods} />}
           {currentView === 'purchases' && <PurchasesView purchases={purchases} setPurchases={setPurchases} paymentMethods={paymentMethods} expenseCategories={expenseCategories} searchTerm={searchTerm} />}
