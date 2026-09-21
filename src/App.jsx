@@ -123,6 +123,12 @@ const getCoveredBase = (amount, bonus, baseAmount) => {
   return Number(amount) / (1 - (b / 100));
 };
 
+// Producto del catálogo asociado a un pedido y su costo unitario (el guardado en el pedido gana sobre el del catálogo).
+const resolveOrderProduct = (order, products = []) => {
+  const linked = products.find(p => (order.productId && p.id === order.productId) || normalizeKey(p.name) === normalizeKey(order.product));
+  return { linked, unitCost: Number(order.unitCost) || Number(linked?.cost) || 0 };
+};
+
 const getEffectiveOrderTotal = (orderLike = {}, paymentBonuses = []) => {
   const baseTotal = Number(orderLike.total || 0);
   const qty = Number(orderLike.quantity || 1);
@@ -4967,11 +4973,15 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
     const finalTotal = getEffectiveOrderTotal({ total: baseTotal, quantity, unitPrice, paymentMethod }, paymentBonuses);
     const status = newOrder.supplierReceived ? 'entregado' : newOrder.supplierOrdered ? 'pedido' : 'pendiente';
 
+    const matchedProduct = productLookup[String(newOrder.product).trim().toLowerCase()];
+
     const created = {
       id: Date.now(),
       saleId: `PED-${Date.now()}`,
       client: newOrder.client,
       product: newOrder.product,
+      productId: matchedProduct?.id || null,
+      unitCost: Number(matchedProduct?.cost) || 0,
       quantity,
       unitPrice,
       total: baseTotal,
@@ -5066,7 +5076,7 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
     const saleDate = order.date || order.promisedDate || order.deliveryDate || new Date().toISOString().slice(0, 10);
     const saleId = order.saleId || `PED-${order.id}`;
     const bonus = Number(order.paymentBonus ?? getPaymentBonusValue(paymentMethod, paymentBonuses));
-    const linkedProduct = products.find(p => (order.productId && p.id === order.productId) || normalizeKey(p.name) === normalizeKey(order.product));
+    const { linked: linkedProduct, unitCost } = resolveOrderProduct(order, products);
 
     const salePayload = {
       id: saleId,
@@ -5080,7 +5090,7 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
         category: linkedProduct?.category || 'Pedido',
         price: Number(order.unitPrice) || 0,
         qty: Number(order.quantity) || 1,
-        cost: Number(linkedProduct?.cost) || 0,
+        cost: unitCost,
         iva: linkedProduct?.iva ?? 0
       }],
       payments: bonus >= 100 ? [{
@@ -5589,6 +5599,40 @@ export default function App() {
     return () => unsubscribeData();
   }, [user]);
 
+  // Migración: ventas generadas por pedidos que quedaron con costo 0 (antes se guardaba fijo en 0).
+  // Solo completa el costo cuando se puede resolver el producto con costo > 0, así que no reescribe en loop.
+  useEffect(() => {
+    if (!user || !products.length || !sales.length || !orders.length) return;
+
+    let changed = false;
+    const fixedSales = sales.map(sale => {
+      if (!sale.createdFromOrder || !Array.isArray(sale.items)) return sale;
+      if (sale.items.every(item => Number(item.cost) > 0)) return sale;
+
+      const order = orders.find(o => String(o.id) === String(sale.sourceOrderId) || (o.saleId && o.saleId === sale.id));
+      if (!order) return sale;
+
+      const { linked, unitCost } = resolveOrderProduct(order, products);
+      if (!(unitCost > 0)) return sale;
+
+      changed = true;
+      return {
+        ...sale,
+        items: sale.items.map(item => Number(item.cost) > 0 ? item : {
+          ...item,
+          productId: linked?.id || item.productId || null,
+          category: item.category && item.category !== 'Pedido' ? item.category : (linked?.category || item.category),
+          cost: unitCost
+        })
+      };
+    });
+
+    if (changed) {
+      setSalesLocal(fixedSales);
+      setDoc(doc(db, "sistema", "datosGenerales"), { ventas: fixedSales }, { merge: true });
+    }
+  }, [user, products, sales, orders]);
+
   // Setters a la Nube (Firebase setDoc)
   const setProducts = (n) => { setProductsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { productos: n }, { merge: true }); };
   const setSales = (n) => {
@@ -5645,6 +5689,7 @@ export default function App() {
         finalTotal,
         provider: supplier,
         productId: product?.id || item.productId || null,
+        unitCost: Number(product?.cost) || Number(item.cost) || 0,
         supplierOrdered: false,
         supplierReceived: false,
         status: 'pendiente',
@@ -5677,6 +5722,7 @@ export default function App() {
         product: combinedProductText,
         quantity,
         unitPrice: total / Math.max(quantity, 1),
+        unitCost: resolvedItems.reduce((acc, item) => acc + ((Number(item.product?.cost) || Number(item.cost) || 0) * (Number(item.qty) || 1)), 0) / Math.max(quantity, 1),
         total,
         finalTotal,
         provider,
@@ -5696,7 +5742,7 @@ export default function App() {
     }
 
     const generatedSales = nextOrders.map((order) => {
-      const linkedProduct = products.find(p => (order.productId && p.id === order.productId) || normalizeKey(p.name) === normalizeKey(order.product));
+      const { linked: linkedProduct, unitCost } = resolveOrderProduct(order, products);
       return {
       id: order.saleId || `PED-${order.id}`,
       sourceOrderId: order.id,
@@ -5709,7 +5755,7 @@ export default function App() {
         category: linkedProduct?.category || 'Pedido',
         price: Number(order.unitPrice) || 0,
         qty: Number(order.quantity) || 1,
-        cost: Number(linkedProduct?.cost) || 0,
+        cost: unitCost,
         iva: linkedProduct?.iva ?? 0
       }],
       payments: Number(order.paidAmount || 0) > 0 ? [{
