@@ -5572,7 +5572,13 @@ export default function App() {
 
   // Setters a la Nube (Firebase setDoc)
   const setProducts = (n) => { setProductsLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { productos: n }, { merge: true }); };
-  const setSales = (n) => { setSalesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { ventas: n }, { merge: true }); };
+  const setSales = (n) => {
+    setSalesLocal(prev => {
+      const nextValue = typeof n === 'function' ? n(prev) : n;
+      setDoc(doc(db, "sistema", "datosGenerales"), { ventas: nextValue }, { merge: true });
+      return nextValue;
+    });
+  };
   const setLoans = (n) => { setLoansLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { prestamos: n }, { merge: true }); };
   const setQuotes = (n) => { setQuotesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { presupuestos: n }, { merge: true }); };
   const setPurchases = (n) => { setPurchasesLocal(n); setDoc(doc(db, "sistema", "datosGenerales"), { gastos: n }, { merge: true }); };
