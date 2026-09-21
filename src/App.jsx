@@ -116,6 +116,13 @@ const getPaymentBonusValue = (method, paymentBonuses = []) => {
   return Number(paymentBonuses.find(b => String(b.method || '').trim().toLowerCase() === safeMethod)?.value || 0);
 };
 
+// Monto de lista que cubre un cobro. Con bonificación 100% el efectivo es 0, por eso se guarda baseAmount.
+const getCoveredBase = (amount, bonus, baseAmount) => {
+  const b = Number(bonus) || 0;
+  if (b >= 100) return Number(baseAmount) || 0;
+  return Number(amount) / (1 - (b / 100));
+};
+
 const getEffectiveOrderTotal = (orderLike = {}, paymentBonuses = []) => {
   const baseTotal = Number(orderLike.total || 0);
   const qty = Number(orderLike.quantity || 1);
@@ -1101,7 +1108,7 @@ function DashboardView({ sales, products, purchases, transfers, accounts, paymen
 
           if (subtotalCart > 0 && paymentBonuses && taxRules) {
               const bonus = p.bonus !== undefined ? p.bonus : (paymentBonuses.find(b => b.method === p.method)?.value || 0);
-              const amountCoveredBase = p.amount / (1 - (bonus / 100));
+              const amountCoveredBase = getCoveredBase(p.amount, bonus, p.baseAmount);
               const proportionOfSale = amountCoveredBase / subtotalCart;
               const descuentos = amountCoveredBase - p.amount;
 
@@ -1343,7 +1350,7 @@ function PnLView({ sales, purchases, paymentBonuses, taxRules }) {
 
       paymentsInPeriod.forEach(pay => {
         const bonus = pay.bonus !== undefined ? pay.bonus : (sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === pay.method)?.value || 0));
-        const amountCoveredBase = pay.amount / (1 - (bonus / 100));
+        const amountCoveredBase = getCoveredBase(pay.amount, bonus, pay.baseAmount);
         
         // P&L cost scaling logic
         const rawProportion = amountCoveredBase / subtotalCart;
@@ -1555,7 +1562,7 @@ function ProfitabilityView({ sales, taxRules, paymentBonuses, searchTerm, produc
       
       const amountCoveredBase = sale.payments?.reduce((acc, p) => {
         const bonus = p.bonus !== undefined ? p.bonus : (sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0));
-        return acc + (p.amount / (1 - (bonus / 100)));
+        return acc + getCoveredBase(p.amount, bonus, p.baseAmount);
       }, 0) || 0;
 
       const descuentos = amountCoveredBase - totalPaymentsVolume;
@@ -2971,7 +2978,7 @@ function SaleDetailModal({ sale, onClose, paymentMethods, paymentBonuses, onUpda
   
   const amountCoveredBase = sale.payments?.reduce((acc, p) => {
     const bonus = p.bonus !== undefined ? p.bonus : (sale.type === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0));
-    return acc + (p.amount / (1 - (bonus / 100)));
+    return acc + getCoveredBase(p.amount, bonus, p.baseAmount);
   }, 0) || 0;
   
   const balance = subtotal - amountCoveredBase;
@@ -2993,12 +3000,14 @@ function SaleDetailModal({ sale, onClose, paymentMethods, paymentBonuses, onUpda
   }, [tempMethod, balance, currentBonusVal]);
 
   const handleAddPayment = () => {
-    const a = parseFloat(tempAmount);
-    if (!tempMethod || isNaN(a) || a <= 0) return;
-    
+    const isFullBonus = currentBonusVal >= 100;
+    const a = isFullBonus ? 0 : parseFloat(tempAmount);
+    if (!tempMethod || isNaN(a) || (!isFullBonus && a <= 0) || (isFullBonus && balance <= 0)) return;
+
     const newPayment = {
       id: Date.now() + Math.random(),
-      method: tempMethod, amount: a, date: newPaymentDate, bonus: currentBonusVal
+      method: tempMethod, amount: a, date: newPaymentDate, bonus: currentBonusVal,
+      ...(isFullBonus ? { baseAmount: balance } : {})
     };
 
     const updatedSale = { ...sale, payments: [...(sale.payments || []), newPayment] };
@@ -3134,7 +3143,7 @@ function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loa
   const subtotalCart = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
   const amountCoveredBase = payments.reduce((acc, p) => {
     const bonus = p.bonus !== undefined ? p.bonus : (saleMode === 'loan' ? 0 : (paymentBonuses.find(b => b.method === p.method)?.value || 0));
-    return acc + (p.amount / (1 - (bonus / 100)));
+    return acc + getCoveredBase(p.amount, bonus, p.baseAmount);
   }, 0);
   
   const balanceBase = subtotalCart - amountCoveredBase;
@@ -3173,10 +3182,11 @@ function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loa
   };
 
   const addPayment = () => {
-    const a = parseFloat(tempPaymentAmount);
-    if (!tempPaymentMethod || isNaN(a) || a <= 0) return;
     const bonus = saleMode === 'loan' ? 0 : (paymentBonuses.find(b => b.method === tempPaymentMethod)?.value || 0);
-    setPayments([...payments, { id: Date.now() + Math.random(), method: tempPaymentMethod, amount: a, date: saleDate, bonus: bonus, note: saleMode === 'loan' ? 'Anticipo Préstamo' : '' }]);
+    const isFullBonus = bonus >= 100;
+    const a = isFullBonus ? 0 : parseFloat(tempPaymentAmount);
+    if (!tempPaymentMethod || isNaN(a) || (!isFullBonus && a <= 0) || (isFullBonus && balanceBase <= 0)) return;
+    setPayments([...payments, { id: Date.now() + Math.random(), method: tempPaymentMethod, amount: a, date: saleDate, bonus: bonus, ...(isFullBonus ? { baseAmount: balanceBase } : {}), note: saleMode === 'loan' ? 'Anticipo Préstamo' : '' }]);
     setTempPaymentMethod(''); setTempPaymentAmount('');
   };
 
@@ -3304,7 +3314,7 @@ function NewSaleForm({ products, paymentMethods, categories, paymentBonuses, loa
                return (
                 <div key={pay.id} className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
                   <div className="flex items-center gap-3"><CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <div><span className="font-bold text-sm text-emerald-900 block">{pay.method}</span><span className="text-[9px] text-emerald-700 uppercase font-bold tracking-widest block">Saldó: {saleMode === 'loan' ? formatCurrency(pay.amount) : formatCurrency(pay.amount / (1 - (b/100)))}</span></div>
+                    <div><span className="font-bold text-sm text-emerald-900 block">{pay.method}</span><span className="text-[9px] text-emerald-700 uppercase font-bold tracking-widest block">Saldó: {saleMode === 'loan' ? formatCurrency(pay.amount) : formatCurrency(getCoveredBase(pay.amount, b, pay.baseAmount))}</span></div>
                   </div>
                   <div className="flex items-center gap-4"><span className="font-black text-emerald-700 text-base">{formatCurrency(pay.amount)}</span><button onClick={() => setPayments(payments.filter(p => p.id !== pay.id))} className="text-stone-400 hover:text-red-500 transition"><Trash2 className="w-4 h-4"/></button></div>
                 </div>
@@ -3496,7 +3506,7 @@ function SalesView({ sales, setSales, orders, setOrders, loans, setLoans, produc
         <div className="grid grid-cols-1 gap-4">
           {filteredSales.map(sale => {
             const subtotal = sale.items.reduce((acc, i) => acc + (i.price * i.qty), 0);
-            const amountCoveredBase = sale.payments?.reduce((acc, p) => acc + (p.amount / (1 - (sale.type === 'loan' ? 0 : ((p.bonus !== undefined ? p.bonus : paymentBonuses.find(b => b.method === p.method)?.value || 0) / 100)))), 0) || 0;
+            const amountCoveredBase = sale.payments?.reduce((acc, p) => acc + getCoveredBase(p.amount, sale.type === 'loan' ? 0 : (p.bonus !== undefined ? p.bonus : paymentBonuses.find(b => b.method === p.method)?.value || 0), p.baseAmount), 0) || 0;
             const balance = subtotal - amountCoveredBase;
 
             return (
@@ -5056,6 +5066,7 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
     const saleDate = order.date || order.promisedDate || order.deliveryDate || new Date().toISOString().slice(0, 10);
     const saleId = order.saleId || `PED-${order.id}`;
     const bonus = Number(order.paymentBonus ?? getPaymentBonusValue(paymentMethod, paymentBonuses));
+    const linkedProduct = products.find(p => (order.productId && p.id === order.productId) || normalizeKey(p.name) === normalizeKey(order.product));
 
     const salePayload = {
       id: saleId,
@@ -5064,15 +5075,23 @@ function OrdersView({ orders, setOrders, products = [], sales = [], setSales = (
       total,
       items: [{
         id: `order-item-${order.id}`,
-        productId: order.productId || null,
+        productId: linkedProduct?.id || order.productId || null,
         name: String(order.product || ''),
-        category: 'Pedido',
+        category: linkedProduct?.category || 'Pedido',
         price: Number(order.unitPrice) || 0,
         qty: Number(order.quantity) || 1,
-        cost: 0,
-        iva: 0
+        cost: Number(linkedProduct?.cost) || 0,
+        iva: linkedProduct?.iva ?? 0
       }],
-      payments: paidAmount > 0 ? [{
+      payments: bonus >= 100 ? [{
+        id: `order-payment-${order.id}`,
+        method: paymentMethod,
+        amount: 0,
+        baseAmount: (Number(order.quantity) || 1) * (Number(order.unitPrice) || 0),
+        date: saleDate,
+        bonus,
+        note: `Bonificación 100% de pedido #${String(order.id)}`
+      }] : paidAmount > 0 ? [{
         id: `order-payment-${order.id}`,
         method: paymentMethod,
         amount: paidAmount,
@@ -5676,20 +5695,22 @@ export default function App() {
       nextOrders = items.map((item, index) => buildOrderFromItem(item, index));
     }
 
-    const generatedSales = nextOrders.map((order) => ({
+    const generatedSales = nextOrders.map((order) => {
+      const linkedProduct = products.find(p => (order.productId && p.id === order.productId) || normalizeKey(p.name) === normalizeKey(order.product));
+      return {
       id: order.saleId || `PED-${order.id}`,
       sourceOrderId: order.id,
       date: order.date || conversionDate,
       total: Number(order.finalTotal || order.total || 0),
       items: [{
         id: `order-item-${order.id}`,
-        productId: order.productId || null,
+        productId: linkedProduct?.id || order.productId || null,
         name: String(order.product || ''),
-        category: 'Pedido',
+        category: linkedProduct?.category || 'Pedido',
         price: Number(order.unitPrice) || 0,
         qty: Number(order.quantity) || 1,
-        cost: 0,
-        iva: 0
+        cost: Number(linkedProduct?.cost) || 0,
+        iva: linkedProduct?.iva ?? 0
       }],
       payments: Number(order.paidAmount || 0) > 0 ? [{
         id: `order-payment-${order.id}`,
@@ -5701,7 +5722,8 @@ export default function App() {
       }] : [],
       type: 'regular',
       createdFromOrder: true
-    }));
+      };
+    });
 
     const nextSales = (() => {
       const merged = [...generatedSales, ...sales];
